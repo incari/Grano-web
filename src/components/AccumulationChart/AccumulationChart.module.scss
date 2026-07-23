@@ -1,0 +1,76 @@
+.wrap {
+  margin-top: 10px;
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.swatchReal { background: var(--accent); }
+
+.swatchIdeal {
+  background: repeating-linear-gradient(
+    to right,
+    var(--text-faint) 0 4px,
+    transparent 4px 7px
+  );
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.grid {
+  stroke: var(--hairline);
+  stroke-width: 1;
+}
+
+.axisText {
+  fill: var(--text-faint);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.idealLine {
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+
+.realLine {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.head {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 2;
+  transition: cx 0.1s linear, cy 0.1s linear;
+}

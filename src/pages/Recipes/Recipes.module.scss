@@ -1,0 +1,326 @@
+.page {
+  padding: 20px 16px 84px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+
+  h1 {
+    font-size: 26px;
+    font-weight: 800;
+    margin: 0;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1.5px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ── Form ─────────────────────────────────────────────── */
+.form {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.input {
+  border: 1.5px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 16px;
+  font-family: inherit;
+  font-weight: 600;
+  width: 100%;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.field { display: flex; flex-direction: column; gap: 8px; }
+
+.fieldLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.row { display: flex; gap: 12px; }
+.row .field { flex: 1; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.chip {
+  padding: 8px 12px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-transform: capitalize;
+}
+
+.chipActive { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 10px;
+  overflow: hidden;
+
+  button {
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: var(--surface-alt);
+    font-size: 22px;
+    color: var(--accent);
+    cursor: pointer;
+  }
+
+  span { font-size: 16px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+}
+
+/* ── Steps ────────────────────────────────────────────── */
+.stepsHead { display: flex; justify-content: space-between; align-items: center; }
+
+.totalWater {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.steps { display: flex; flex-direction: column; gap: 10px; }
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.stepNum {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepFields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.stepName {
+  border: 1.5px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  width: 100%;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.stepNums { display: flex; gap: 8px; }
+
+.stepNumField {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  > span { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+}
+
+.miniStepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+
+  button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--surface);
+    font-size: 18px;
+    color: var(--accent);
+    cursor: pointer;
+  }
+
+  span { font-size: 13px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+}
+
+.stepDel {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--danger);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:disabled { color: var(--text-faint); cursor: not-allowed; }
+}
+
+.addStep {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1.5px dashed var(--border-strong);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.formActions { display: flex; gap: 10px; }
+
+.cancel {
+  flex: 1;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.save {
+  flex: 2;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+/* ── List ─────────────────────────────────────────────── */
+.empty { text-align: center; color: var(--text-muted); margin-top: 40px; }
+
+.list { display: flex; flex-direction: column; gap: 12px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.cardTop { display: flex; justify-content: space-between; align-items: flex-start; }
+
+.cardInfo { display: flex; flex-direction: column; gap: 2px; }
+
+.cardName { font-size: 18px; font-weight: 700; color: var(--text); }
+.cardMethod { font-size: 13px; color: var(--text-muted); text-transform: capitalize; }
+
+.cardActions {
+  display: flex;
+  gap: 4px;
+
+  button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--surface-alt);
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.cardStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 12px 0;
+  font-size: 13px;
+
+  span {
+    background: var(--surface-alt);
+    color: var(--text);
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+}
+
+.brew {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}

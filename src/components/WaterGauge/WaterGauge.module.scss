@@ -1,0 +1,109 @@
+.wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px auto;
+  width: fit-content;
+
+  /* Tone drives the progress arc + accent text. */
+  --gauge: var(--accent);
+}
+
+.active { --gauge: var(--accent); }
+.ok { --gauge: var(--success); }
+.over { --gauge: var(--danger); }
+
+.svg {
+  display: block;
+}
+
+.track {
+  stroke: var(--border);
+}
+
+.progress {
+  stroke: var(--gauge);
+  transition: stroke-dasharray 0.15s linear, stroke 0.3s ease;
+}
+
+.tick {
+  stroke: var(--text-faint);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.5;
+}
+
+.tickActive {
+  stroke: var(--gauge);
+  stroke-width: 3;
+  opacity: 1;
+}
+
+.center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--gauge);
+}
+
+.value {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.number {
+  font-size: 68px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+  letter-spacing: -2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.unit {
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.target {
+  font-size: 20px;
+  color: var(--text-faint);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.flow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.flowIcon {
+  color: var(--gauge);
+}
+
+.flowValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gauge);
+  font-variant-numeric: tabular-nums;
+}
+
+.flowLabel {
+  font-size: 12px;
+  color: var(--text-faint);
+}
