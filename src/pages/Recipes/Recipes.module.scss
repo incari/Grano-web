@@ -58,7 +58,11 @@
   color: var(--text);
 }
 
-.field { display: flex; flex-direction: column; gap: 8px; }
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 .fieldLabel {
   display: flex;
@@ -70,10 +74,20 @@
   color: var(--text-muted);
 }
 
-.row { display: flex; gap: 12px; }
-.row .field { flex: 1; }
+.row {
+  display: flex;
+  gap: 12px;
+}
 
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.row .field {
+  flex: 1;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 
 .chip {
   padding: 8px 12px;
@@ -87,7 +101,11 @@
   text-transform: capitalize;
 }
 
-.chipActive { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.chipActive {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
 
 .stepper {
   display: flex;
@@ -107,11 +125,20 @@
     cursor: pointer;
   }
 
-  span { font-size: 16px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+  span {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 /* ── Steps ────────────────────────────────────────────── */
-.stepsHead { display: flex; justify-content: space-between; align-items: center; }
+.stepsHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
 .totalWater {
   display: inline-flex;
@@ -122,7 +149,11 @@
   color: var(--accent);
 }
 
-.steps { display: flex; flex-direction: column; gap: 10px; }
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
 .step {
   display: flex;
@@ -140,7 +171,7 @@
   flex-shrink: 0;
   border-radius: 50%;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-text);
   font-size: 13px;
   font-weight: 700;
   display: flex;
@@ -148,7 +179,13 @@
   justify-content: center;
 }
 
-.stepFields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.stepFields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 .stepName {
   border: 1.5px solid var(--border-strong);
@@ -162,7 +199,10 @@
   color: var(--text);
 }
 
-.stepNums { display: flex; gap: 8px; }
+.stepNums {
+  display: flex;
+  gap: 8px;
+}
 
 .stepNumField {
   flex: 1;
@@ -170,7 +210,11 @@
   flex-direction: column;
   gap: 3px;
 
-  > span { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+  >span {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
 }
 
 .miniStepper {
@@ -192,7 +236,12 @@
     cursor: pointer;
   }
 
-  span { font-size: 13px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+  span {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 .stepDel {
@@ -209,7 +258,10 @@
   align-items: center;
   justify-content: center;
 
-  &:disabled { color: var(--text-faint); cursor: not-allowed; }
+  &:disabled {
+    color: var(--text-faint);
+    cursor: not-allowed;
+  }
 }
 
 .addStep {
@@ -227,7 +279,10 @@
   cursor: pointer;
 }
 
-.formActions { display: flex; gap: 10px; }
+.formActions {
+  display: flex;
+  gap: 10px;
+}
 
 .cancel {
   flex: 1;
@@ -245,34 +300,65 @@
   flex: 2;
   border: none;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-text);
   border-radius: 12px;
   padding: 14px;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: var(--shadow-sm);
 
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
 }
 
 /* ── List ─────────────────────────────────────────────── */
-.empty { text-align: center; color: var(--text-muted); margin-top: 40px; }
+.empty {
+  text-align: center;
+  color: var(--text-muted);
+  margin-top: 40px;
+}
 
-.list { display: flex; flex-direction: column; gap: 12px; }
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
 .card {
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: 16px;
   padding: 16px;
+  box-shadow: var(--shadow-sm);
 }
 
-.cardTop { display: flex; justify-content: space-between; align-items: flex-start; }
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
 
-.cardInfo { display: flex; flex-direction: column; gap: 2px; }
+.cardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 
-.cardName { font-size: 18px; font-weight: 700; color: var(--text); }
-.cardMethod { font-size: 13px; color: var(--text-muted); text-transform: capitalize; }
+.cardName {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cardMethod {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
 
 .cardActions {
   display: flex;
@@ -317,10 +403,16 @@
   gap: 6px;
   border: none;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-text);
   border-radius: 12px;
   padding: 12px;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+  transition: filter 0.15s ease, transform 0.06s ease;
+
+  &:active {
+    filter: brightness(0.94);
+    transform: translateY(1px);
+  }
 }

@@ -1,23 +1,67 @@
-import { useMemo, useState } from 'react';
-import type { BrewMethod } from '../../types';
-import { BREW_PRESETS, getPreset } from '../../utils/presets';
-import { buildRecipe } from '../../utils/recipe';
-import { useBeans, useBrewLogs } from '../../store/useStore';
-import { Coffee } from 'lucide-react';
-import GuidedPour from './GuidedPour';
-import styles from './BrewSetup.module.scss';
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { BrewMethod } from "../../types";
+import { BREW_PRESETS, getPreset } from "../../utils/presets";
+import { buildRecipe, formatTime } from "../../utils/recipe";
+import { useBeans, useBrewLogs } from "../../store/useStore";
+import {
+  Coffee,
+  Droplets,
+  CupSoda,
+  Beaker,
+  FlaskConical,
+  Settings2,
+  Scale,
+  Timer,
+  ListOrdered,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import GuidedPour from "./GuidedPour";
+import styles from "./BrewSetup.module.scss";
+
+const METHOD_ICONS: Record<BrewMethod, LucideIcon> = {
+  espresso: Coffee,
+  "pour-over": Droplets,
+  "french-press": CupSoda,
+  aeropress: Beaker,
+  chemex: FlaskConical,
+  custom: Settings2,
+};
 
 export default function BrewSetup() {
   const { beans } = useBeans();
   const { addLog } = useBrewLogs();
-  const [method, setMethod] = useState<BrewMethod>('pour-over');
+  const [method, setMethod] = useState<BrewMethod>("pour-over");
   const [dose, setDose] = useState(15);
-  const [ratio, setRatio] = useState(getPreset('pour-over').ratio);
-  const [beanId, setBeanId] = useState<string>('');
+  const [ratio, setRatio] = useState(getPreset("pour-over").ratio);
+  const [beanId, setBeanId] = useState<string>("");
   const [brewing, setBrewing] = useState(false);
 
   const water = Math.round(dose * ratio);
-  const recipe = useMemo(() => buildRecipe(method, dose, ratio), [method, dose, ratio]);
+  const recipe = useMemo(
+    () => buildRecipe(method, dose, ratio),
+    [method, dose, ratio],
+  );
+  const rMin = method === "espresso" ? 1.5 : 10;
+  const rMax = method === "espresso" ? 3 : 18;
+
+  const holdRef = useRef<number | null>(null);
+  function startHold(step: () => void) {
+    step();
+    if (holdRef.current !== null) window.clearInterval(holdRef.current);
+    holdRef.current = window.setInterval(step, 110);
+  }
+  function stopHold() {
+    if (holdRef.current !== null) {
+      window.clearInterval(holdRef.current);
+      holdRef.current = null;
+    }
+  }
+  useEffect(
+    () => () => {
+      if (holdRef.current !== null) window.clearInterval(holdRef.current);
+    },
+    [],
+  );
 
   function selectMethod(m: BrewMethod) {
     setMethod(m);
@@ -27,7 +71,7 @@ export default function BrewSetup() {
   }
 
   function finishBrew(elapsed: number) {
-    const bean = beans.find(b => b.id === beanId);
+    const bean = beans.find((b) => b.id === beanId);
     addLog({
       id: crypto.randomUUID(),
       beanId: beanId || undefined,
@@ -38,7 +82,7 @@ export default function BrewSetup() {
       ratio,
       brewTimeSeconds: elapsed,
       rating: 0,
-      notes: '',
+      notes: "",
       brewedAt: new Date().toISOString(),
     });
     setBrewing(false);
@@ -57,45 +101,91 @@ export default function BrewSetup() {
   return (
     <div className={styles.page}>
       <header className={styles.head}>
-        <h1><Coffee size={26} strokeWidth={2.25} /> Grano</h1>
+        <h1>
+          <Coffee
+            size={26}
+            strokeWidth={2.25}
+          />{" "}
+          Grano
+        </h1>
         <p>Gram-precise controlled brewing</p>
       </header>
 
       <section className={styles.block}>
         <span className={styles.blockLabel}>METHOD</span>
         <div className={styles.methods}>
-          {BREW_PRESETS.map(p => (
-            <button
-              key={p.method}
-              className={`${styles.method} ${method === p.method ? styles.methodActive : ''}`}
-              onClick={() => selectMethod(p.method)}
-            >
-              {p.label}
-            </button>
-          ))}
+          {BREW_PRESETS.map((p) => {
+            const Icon = METHOD_ICONS[p.method];
+            const active = method === p.method;
+            return (
+              <button
+                key={p.method}
+                className={`${styles.method} ${active ? styles.methodActive : ""}`}
+                onClick={() => selectMethod(p.method)}
+                aria-pressed={active}
+              >
+                <Icon
+                  size={20}
+                  strokeWidth={2}
+                  className={styles.methodIcon}
+                />
+                <span className={styles.methodLabel}>{p.label}</span>
+                <span className={styles.methodHint}>
+                  1:{p.ratio} · {formatTime(p.brewTimeSeconds)}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 
       <section className={styles.block}>
         <span className={styles.blockLabel}>COFFEE (DOSE)</span>
         <div className={styles.stepper}>
-          <button onClick={() => setDose(d => Math.max(1, d - 1))}>−</button>
-          <div className={styles.stepperValue}>{dose} <small>g</small></div>
-          <button onClick={() => setDose(d => d + 1)}>+</button>
+          <button
+            onPointerDown={() =>
+              startHold(() => setDose((d) => Math.max(1, d - 1)))
+            }
+            onPointerUp={stopHold}
+            onPointerLeave={stopHold}
+            onPointerCancel={stopHold}
+            aria-label="Decrease dose"
+          >
+            −
+          </button>
+          <div className={styles.stepperValue}>
+            {dose} <small>g</small>
+          </div>
+          <button
+            onPointerDown={() => startHold(() => setDose((d) => d + 1))}
+            onPointerUp={stopHold}
+            onPointerLeave={stopHold}
+            onPointerCancel={stopHold}
+            aria-label="Increase dose"
+          >
+            +
+          </button>
         </div>
       </section>
 
       <section className={styles.block}>
-        <span className={styles.blockLabel}>RATIO — 1:{ratio}</span>
+        <div className={styles.blockHead}>
+          <span className={styles.blockLabel}>RATIO</span>
+          <span className={styles.ratioBadge}>1:{ratio}</span>
+        </div>
         <input
           type="range"
-          min={method === 'espresso' ? 1.5 : 10}
-          max={method === 'espresso' ? 3 : 18}
-          step={method === 'espresso' ? 0.1 : 0.5}
+          min={rMin}
+          max={rMax}
+          step={method === "espresso" ? 0.1 : 0.5}
           value={ratio}
-          onChange={e => setRatio(Number(e.target.value))}
+          onChange={(e) => setRatio(Number(e.target.value))}
           className={styles.slider}
         />
+        <div className={styles.sliderScale}>
+          <span>Stronger · 1:{rMin}</span>
+          <span>Lighter · 1:{rMax}</span>
+        </div>
       </section>
 
       {beans.length > 0 && (
@@ -104,11 +194,16 @@ export default function BrewSetup() {
           <select
             className={styles.select}
             value={beanId}
-            onChange={e => setBeanId(e.target.value)}
+            onChange={(e) => setBeanId(e.target.value)}
           >
             <option value="">Unspecified</option>
-            {beans.map(b => (
-              <option key={b.id} value={b.id}>{b.name}</option>
+            {beans.map((b) => (
+              <option
+                key={b.id}
+                value={b.id}
+              >
+                {b.name}
+              </option>
             ))}
           </select>
         </section>
@@ -116,16 +211,37 @@ export default function BrewSetup() {
 
       <div className={styles.summary}>
         <div>
-          <span className={styles.sumLabel}>Total water</span>
+          <Scale
+            size={18}
+            className={styles.sumIcon}
+          />
+          <span className={styles.sumLabel}>Water</span>
           <span className={styles.sumValue}>{water} g</span>
         </div>
         <div>
+          <Timer
+            size={18}
+            className={styles.sumIcon}
+          />
+          <span className={styles.sumLabel}>Time</span>
+          <span className={styles.sumValue}>
+            {formatTime(getPreset(method).brewTimeSeconds)}
+          </span>
+        </div>
+        <div>
+          <ListOrdered
+            size={18}
+            className={styles.sumIcon}
+          />
           <span className={styles.sumLabel}>Steps</span>
           <span className={styles.sumValue}>{recipe.steps.length}</span>
         </div>
       </div>
 
-      <button className={styles.start} onClick={() => setBrewing(true)}>
+      <button
+        className={styles.start}
+        onClick={() => setBrewing(true)}
+      >
         Start brewing
       </button>
     </div>

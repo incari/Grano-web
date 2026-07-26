@@ -1,4 +1,10 @@
-export type BrewMethod = 'espresso' | 'pour-over' | 'french-press' | 'aeropress' | 'chemex' | 'custom';
+export type BrewMethod =
+  | "espresso"
+  | "pour-over"
+  | "french-press"
+  | "aeropress"
+  | "chemex"
+  | "custom";
 
 export interface BrewPreset {
   method: BrewMethod;
@@ -13,19 +19,19 @@ export interface CoffeeBean {
   name: string;
   origin: string;
   roaster: string;
-  roastLevel: 'light' | 'medium' | 'medium-dark' | 'dark';
+  roastLevel: "light" | "medium" | "medium-dark" | "dark";
   notes: string;
   photoUrl?: string; // base64 or object URL
   addedAt: string; // ISO date
 }
 
 export type GrindSize =
-  | 'extra-fine'
-  | 'fine'
-  | 'medium-fine'
-  | 'medium'
-  | 'medium-coarse'
-  | 'coarse';
+  | "extra-fine"
+  | "fine"
+  | "medium-fine"
+  | "medium"
+  | "medium-coarse"
+  | "coarse";
 
 export interface RecipeStep {
   id: string;
@@ -45,6 +51,17 @@ export interface SavedRecipe {
   createdAt: string; // ISO date
 }
 
+// Detailed tasting review — the five practical home-cupping attributes,
+// each scored 1-5. All optional; only set once the user adds details.
+export interface BrewReview {
+  aroma?: number; // 1-5
+  acidity?: number; // 1-5
+  body?: number; // 1-5
+  sweetness?: number; // 1-5
+  aftertaste?: number; // 1-5
+  liked?: string; // free text: what stood out / what to change
+}
+
 export interface BrewLog {
   id: string;
   beanId?: string;
@@ -54,7 +71,8 @@ export interface BrewLog {
   waterWeight: number;
   ratio: number;
   brewTimeSeconds: number;
-  rating: number; // 1-5
+  rating: number; // 1-5 overall
   notes: string;
   brewedAt: string; // ISO date
+  review?: BrewReview;
 }

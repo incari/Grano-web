@@ -2,72 +2,181 @@
   box-sizing: border-box;
 }
 
+/* Hide the bottom navbar while the guided brewing screen is active */
+body.brewing #bottom-nav {
+  display: none;
+}
+
 :root {
+  /* Type — offline-safe stacks. Display resolves to New York on Apple
+     devices, Palatino/Georgia elsewhere. No webfont = no network dependency. */
+  --font-display:
+    "New York", ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino,
+    Georgia, "Times New Roman", serif;
+  --font-body:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, "Cascadia Code",
+    monospace;
+
+  /* "Cream & espresso" — warm, artisanal roaster palette */
   /* Surfaces */
-  --bg: #f4f4f6;
-  --surface: #ffffff;
-  --surface-alt: #e9eef7;
-  --border: #e6e6e9;
-  --border-strong: #d4d4d8;
-  --hairline: #ececef;
+  --bg: #f3ede2;
+  --surface: #fffbf4;
+  --surface-alt: #ece2d1;
+  --border: #e2d7c4;
+  --border-strong: #d0c2a9;
+  --hairline: #ebe1d1;
 
   /* Text */
-  --text: #111111;
-  --text-muted: #6a6a6f;
-  --text-faint: #9a9a9f;
+  --text: #29201a;
+  --text-muted: #6d5f50;
+  --text-faint: #9d8d79;
 
-  /* Accents */
-  --accent: #2f7bfd;
-  --accent-soft: #eef4ff;
-  --success: #23c16b;
-  --success-soft: #e6f7ee;
-  --success-text: #1a9e57;
-  --warn: #d98a1f;
-  --warn-soft: #fdeede;
-  --warn-text: #c47a13;
-  --danger: #e5484d;
-  --danger-soft: #f3c6c7;
+  /* Accents — burnt terracotta / roasted amber */
+  --accent: #c15b2c;
+  --accent-strong: #a84a20;
+  --accent-soft: #f6e5d6;
+  --accent-text: #fffbf4;
+  --success: #4a8f5b;
+  --success-soft: #e3efdf;
+  --success-text: #3a7a4a;
+  --warn: #c9871f;
+  --warn-soft: #f8ecd6;
+  --warn-text: #a86f13;
+  --danger: #c34a41;
+  --danger-soft: #f4d9d5;
+
+  /* Depth — warm-tinted shadows */
+  --shadow-sm:
+    0 1px 2px rgba(41, 32, 26, 0.06), 0 2px 6px rgba(41, 32, 26, 0.05);
+  --shadow-md:
+    0 6px 20px rgba(41, 32, 26, 0.1), 0 2px 8px rgba(41, 32, 26, 0.06);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e0e10;
-    --surface: #1a1a1d;
-    --surface-alt: #1f2733;
-    --border: #2a2a2e;
-    --border-strong: #3a3a40;
-    --hairline: #262629;
+    /* "Night roast" — deep warm browns */
+    --bg: #17120e;
+    --surface: #211a15;
+    --surface-alt: #2b221a;
+    --border: #352a20;
+    --border-strong: #4a3b2c;
+    --hairline: #2c241c;
 
-    --text: #f2f2f4;
-    --text-muted: #a0a0a8;
-    --text-faint: #6f6f78;
+    --text: #f2e9dc;
+    --text-muted: #b1a08d;
+    --text-faint: #7a6a58;
 
-    --accent: #4a90ff;
-    --accent-soft: #16233d;
-    --success: #2ed17a;
-    --success-soft: #123021;
-    --success-text: #4bdd97;
+    --accent: #e07d47;
+    --accent-strong: #f0915e;
+    --accent-soft: #3a2416;
+    --accent-text: #1a130d;
+    --success: #57b06f;
+    --success-soft: #17301f;
+    --success-text: #74d08c;
     --warn: #e0a544;
-    --warn-soft: #33240f;
-    --warn-text: #e8b866;
-    --danger: #ff6166;
-    --danger-soft: #3a1416;
+    --warn-soft: #332510;
+    --warn-text: #eaba69;
+    --danger: #ff6b62;
+    --danger-soft: #3a1613;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
   }
 }
 
-html, body, #root {
+html,
+body,
+#root {
   margin: 0;
   padding: 0;
   min-height: 100vh;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background: var(--bg);
+  font-family: var(--font-body);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Warm atmosphere: a soft amber glow top-right, tan pool bottom-left */
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(
+      1200px 620px at 100% -8%,
+      var(--accent-soft),
+      transparent 58%
+    ),
+    radial-gradient(
+      900px 520px at -12% 112%,
+      var(--surface-alt),
+      transparent 55%
+    );
+  background-attachment: fixed;
+}
+
+/* Fine grain overlay for a printed / paper-bag texture */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Display serif for page headings — the app's warm, editorial voice */
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
 }
 
 button {
   font-family: inherit;
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Shared-element morphs: recipe name → brew title, log method → detail header */
+::view-transition-group(brew-title),
+::view-transition-group(brew-detail-title) {
+  animation-duration: 420ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+::view-transition-old(brew-title),
+::view-transition-new(brew-title),
+::view-transition-old(brew-detail-title),
+::view-transition-new(brew-detail-title) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }

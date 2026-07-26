@@ -1,25 +1,35 @@
-import { NavLink } from 'react-router-dom';
-import { Coffee, Bean, NotebookText, ClipboardList } from 'lucide-react';
-import styles from './BottomNav.module.scss';
+import { NavLink } from "react-router-dom";
+import { Coffee, Bean, NotebookText, ClipboardList } from "lucide-react";
+import styles from "./BottomNav.module.scss";
 
 const items = [
-  { to: '/',        Icon: Coffee,        label: 'Brew'    },
-  { to: '/recipes', Icon: NotebookText,  label: 'Recipes' },
-  { to: '/beans',   Icon: Bean,          label: 'Beans'   },
-  { to: '/log',     Icon: ClipboardList, label: 'Log'     },
+  { to: "/", Icon: Coffee, label: "Brew" },
+  { to: "/recipes", Icon: NotebookText, label: "Recipes" },
+  { to: "/beans", Icon: Bean, label: "Beans" },
+  { to: "/log", Icon: ClipboardList, label: "Log" },
 ];
 
 export default function BottomNav() {
   return (
-    <nav className={styles.nav}>
-      {items.map(item => (
+    <nav
+      id="bottom-nav"
+      className={styles.nav}
+    >
+      {items.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
           end
-          className={({ isActive }) => `${styles.item} ${isActive ? styles.active : ''}`}
+          className={({ isActive }) =>
+            `${styles.item} ${isActive ? styles.active : ""}`
+          }
         >
-          <span className={styles.icon}><item.Icon size={22} strokeWidth={2} /></span>
+          <span className={styles.icon}>
+            <item.Icon
+              size={22}
+              strokeWidth={2}
+            />
+          </span>
           <span className={styles.label}>{item.label}</span>
         </NavLink>
       ))}

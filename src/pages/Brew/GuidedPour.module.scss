@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
   background: var(--bg);
   color: var(--text);
 }
@@ -10,7 +13,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 16px;
+  padding: 8px 12px;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
@@ -20,20 +23,21 @@
   text-align: center;
 
   h1 {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 700;
     margin: 0;
   }
+
   p {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text-faint);
-    margin: 2px 0 0;
+    margin: 1px 0 0;
   }
 }
 
 .iconBtn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border: none;
   background: none;
   font-size: 24px;
@@ -41,7 +45,9 @@
   cursor: pointer;
   border-radius: 8px;
 
-  &:active { background: var(--border); }
+  &:active {
+    background: var(--border);
+  }
 }
 
 /* ── Compact steps strip (pinned, de-emphasized overview) ───────────────── */
@@ -55,7 +61,9 @@
   border-bottom: 1px solid var(--border);
   scrollbar-width: none;
 
-  &::-webkit-scrollbar { display: none; }
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .stepItem {
@@ -77,9 +85,21 @@
   flex-shrink: 0;
 }
 
-.stepDot_done { background: var(--success); color: #fff; }
-.stepDot_active { background: var(--surface); color: var(--accent); border: 2px solid var(--accent); }
-.stepDot_todo { background: var(--border-strong); color: var(--text-muted); }
+.stepDot_done {
+  background: var(--success);
+  color: #fff;
+}
+
+.stepDot_active {
+  background: var(--surface);
+  color: var(--accent);
+  border: 2px solid var(--accent);
+}
+
+.stepDot_todo {
+  background: var(--border-strong);
+  color: var(--text-muted);
+}
 
 .stepName {
   font-size: 12px;
@@ -101,12 +121,15 @@
   flex-shrink: 0;
 }
 
-.stepConnDone { background: var(--accent); }
+.stepConnDone {
+  background: var(--accent);
+}
 
 .body {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 14px 16px 14px;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 14px calc(104px + env(safe-area-inset-bottom, 0)) 14px;
 }
 
 /* ── Timeline rows ──────────────────────────────────────────────────────── */
@@ -145,14 +168,35 @@
   margin: 4px 0;
 }
 
-.lineDone { background: var(--accent); }
+.lineDone {
+  background: var(--accent);
+}
 
-.dotDone { background: var(--success); color: #fff; }
-.dotActive { background: var(--surface); color: var(--accent); border: 2px solid var(--accent); }
-.dotTodo { background: var(--border-strong); color: var(--text-muted); }
+.dotDone {
+  background: var(--success);
+  color: #fff;
+}
 
-.flag { background: var(--border-strong); color: var(--text-muted); }
-.flagDone { background: var(--success); color: #fff; }
+.dotActive {
+  background: var(--surface);
+  color: var(--accent);
+  border: 2px solid var(--accent);
+}
+
+.dotTodo {
+  background: var(--border-strong);
+  color: var(--text-muted);
+}
+
+.flag {
+  background: var(--border-strong);
+  color: var(--text-muted);
+}
+
+.flagDone {
+  background: var(--success);
+  color: #fff;
+}
 
 .rowBody {
   flex: 1;
@@ -161,7 +205,9 @@
 }
 
 /* Collapsed done row */
-.doneRow .rowBody { padding-top: 2px; }
+.doneRow .rowBody {
+  padding-top: 2px;
+}
 
 .collapsed {
   display: flex;
@@ -257,6 +303,21 @@
   margin-top: 14px;
 }
 
+/* Tighter variant so the following card (next action) stays in view. */
+.cardCompact {
+  padding: 12px 14px;
+  margin-top: 10px;
+
+  .rangeHead {
+    margin: 8px 0 0;
+  }
+
+  .rangeIdeal,
+  .rangeReal {
+    font-size: 16px;
+  }
+}
+
 .cardLabel {
   font-size: 12px;
   font-weight: 700;
@@ -271,12 +332,15 @@
   gap: 8px;
 }
 
-.rangeItem, .rangeItemRight {
+.rangeItem,
+.rangeItemRight {
   display: flex;
   flex-direction: column;
 }
 
-.rangeItemRight { margin-left: 18px; }
+.rangeItemRight {
+  margin-left: 18px;
+}
 
 .rangeCap {
   font-size: 12px;
@@ -319,8 +383,15 @@
   white-space: nowrap;
 }
 
-.badgeOk { background: var(--success-soft); color: var(--success-text); }
-.badgeOut { background: var(--warn-soft); color: var(--warn-text); }
+.badgeOk {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.badgeOut {
+  background: var(--warn-soft);
+  color: var(--warn-text);
+}
 
 .badgeSub {
   font-size: 11px;
@@ -341,14 +412,12 @@
   right: 0;
   height: 5px;
   border-radius: 3px;
-  background: linear-gradient(
-    to right,
-    var(--accent) 0%,
-    var(--accent) 45%,
-    var(--success) 45%,
-    var(--success) 62%,
-    var(--border) 62%
-  );
+  background: linear-gradient(to right,
+      var(--accent) 0%,
+      var(--accent) 45%,
+      var(--success) 45%,
+      var(--success) 62%,
+      var(--border) 62%);
 }
 
 .band {
@@ -394,18 +463,24 @@
   font-variant-numeric: tabular-nums;
 }
 
-.pourToRow, .nextRow {
+.pourToRow,
+.nextRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
 
-  > div:first-child { min-width: 0; }
+  >div:first-child {
+    min-width: 0;
+  }
 }
 
-.pourToMain { min-width: 0; }
+.pourToMain {
+  min-width: 0;
+}
 
-.remainLabel, .nextLabel {
+.remainLabel,
+.nextLabel {
   font-size: 13px;
   color: var(--text-muted);
   font-weight: 600;
@@ -416,7 +491,10 @@
   align-items: center;
   gap: 6px;
 
-  svg { color: var(--accent); flex-shrink: 0; }
+  svg {
+    color: var(--accent);
+    flex-shrink: 0;
+  }
 }
 
 .nextLabel {
@@ -453,7 +531,11 @@
   font-weight: 500;
 }
 
-.adjust { display: flex; gap: 8px; flex-shrink: 0; }
+.adjust {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
 
 .stepBtn {
   border: 1.5px solid var(--accent);
@@ -466,7 +548,9 @@
   cursor: pointer;
   white-space: nowrap;
 
-  &:active { background: var(--accent-soft); }
+  &:active {
+    background: var(--accent-soft);
+  }
 }
 
 .nextAction {
@@ -476,10 +560,15 @@
   font-size: 16px;
   margin-top: 4px;
 
-  strong { font-weight: 800; }
+  strong {
+    font-weight: 800;
+  }
 }
 
-.actionIcon { color: var(--accent); flex-shrink: 0; }
+.actionIcon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
 
 .skipBtn {
   display: flex;
@@ -496,10 +585,109 @@
   white-space: nowrap;
   flex-shrink: 0;
 
-  &:active { background: var(--bg); }
+  &:active {
+    background: var(--bg);
+  }
+}
+
+/* ── Stir / serve action step ────────────────────────────────────────────── */
+.actionCard {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  padding: 28px 18px 22px;
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.actionCircle {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.actionCirclePulse {
+  animation: actionPulse 1.6s ease-in-out infinite;
+}
+
+.actionCircleDone {
+  background: var(--success);
+  color: #fff;
+}
+
+@keyframes actionPulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 var(--accent-soft);
+  }
+
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+.actionInstruction {
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--text);
+  margin: 0;
+  max-width: 32ch;
+}
+
+.actionCountdown {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: var(--accent);
+}
+
+.actionCountdownDone {
+  font-size: 26px;
+  color: var(--success);
+}
+
+.actionSkip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--accent);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 2px;
+
+  &:active {
+    background: var(--bg);
+  }
 }
 
 .footer {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  z-index: 50;
   display: flex;
   gap: 10px;
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0));
@@ -522,8 +710,14 @@
   color: var(--text);
   cursor: pointer;
 
-  &:active { background: var(--bg); }
-  &:disabled { opacity: 0.4; cursor: default; }
+  &:active {
+    background: var(--bg);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
 }
 
 .finish {
