@@ -56,6 +56,8 @@ interface ActionGuide {
 }
 interface MethodGuidance {
   bloom?: ActionGuide; // swirl/stir + bloom wait, right after the bloom pour
+  inlineBloom?: boolean; // keep the bloom as a single pour step, folding the
+  // stir guidance into it instead of a separate action step
   finalSwirl?: ActionGuide; // swirl to settle the bed after the final pour
   serve?: ActionGuide; // steep / drawdown wait before drinking
 }
@@ -98,6 +100,7 @@ const GUIDANCE: Partial<Record<BrewMethod, MethodGuidance>> = {
     },
   },
   "french-press": {
+    inlineBloom: true,
     bloom: {
       label: "Stir the crust",
       instruction:
@@ -131,6 +134,7 @@ interface PourSpec {
   isBloom: boolean;
   label: string;
   restSeconds: number;
+  instruction?: string; // inline guidance shown on the pour step (e.g. bloom stir)
 }
 interface ActionSpec {
   kind: "stir" | "serve";
@@ -162,6 +166,7 @@ function layoutSteps(specs: StepSpec[]): PourStep[] {
         waitUntil,
         restSeconds: spec.restSeconds,
         actionSeconds: 0,
+        instruction: spec.instruction,
         isBloom: spec.isBloom,
       };
     }
@@ -198,11 +203,16 @@ export function buildRecipe(
     const isBloom = i === 0 && fractions.length > 1;
     const isLast = i === fractions.length - 1;
     const target = Math.round((totalWater * frac) / 5) * 5;
-    // With guidance, bloom/final waits move into dedicated action steps.
+    // Fold the bloom stir into the bloom pour so it stays a regular pour step.
+    const inlineBloom = Boolean(isBloom && guide?.bloom && guide.inlineBloom);
+    // With guidance, bloom/final waits move into dedicated action steps —
+    // unless the bloom is inlined, which keeps its steep window on the pour.
     const restSeconds = guide
-      ? isBloom || isLast
-        ? 0
-        : 30
+      ? inlineBloom
+        ? guide.bloom!.seconds
+        : isBloom || isLast
+          ? 0
+          : 30
       : isLast
         ? 0
         : isBloom
@@ -214,8 +224,9 @@ export function buildRecipe(
       isBloom,
       label: stepLabel(i, fractions.length, isBloom),
       restSeconds,
+      instruction: inlineBloom ? guide!.bloom!.instruction : undefined,
     });
-    if (isBloom && guide?.bloom) {
+    if (isBloom && guide?.bloom && !guide.inlineBloom) {
       specs.push({ kind: "stir", ...guide.bloom });
     }
     if (isLast) {

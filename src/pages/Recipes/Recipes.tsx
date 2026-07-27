@@ -18,6 +18,7 @@ import type {
 } from "../../types";
 import { BREW_PRESETS } from "../../utils/presets";
 import { buildRecipeFromSaved } from "../../utils/recipe";
+import PageHeader from "../../components/PageHeader/PageHeader";
 import { useRecipes, useBrewLogs } from "../../store/useStore";
 import GuidedPour from "../Brew/GuidedPour";
 import styles from "./Recipes.module.scss";
@@ -176,23 +177,25 @@ export default function Recipes() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <h1>
-          <NotebookText
-            size={26}
-            strokeWidth={2.25}
-          />{" "}
-          Recipes
-        </h1>
-        {!draft && (
-          <button
-            className={styles.addBtn}
-            onClick={startAdd}
-          >
-            <Plus size={16} /> New
-          </button>
-        )}
-      </header>
+      <PageHeader
+        icon={NotebookText}
+        title="Recipes"
+        subtitle={
+          recipes.length
+            ? `${recipes.length} recipe${recipes.length === 1 ? "" : "s"}`
+            : "Saved brews"
+        }
+        action={
+          !draft && (
+            <button
+              className={styles.addBtn}
+              onClick={startAdd}
+            >
+              <Plus size={16} /> New
+            </button>
+          )
+        }
+      />
 
       {draft ? (
         <div className={styles.form}>

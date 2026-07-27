@@ -46,10 +46,12 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState<Phase>("pouring");
   const [rest, setRest] = useState(0); // seconds left in current rest
+  const [pourStartAt, setPourStartAt] = useState(0); // elapsed when this pour began
   const [history, setHistory] = useState<ChartPoint[]>([{ t: 0, g: 0 }]);
 
   const finished = useRef(false);
   const started = useRef(false);
+  const elapsedRef = useRef(0); // mirrors `elapsed` for reads inside handlers
 
   const step = recipe.steps[stepIndex];
   const isLastStep = stepIndex >= recipe.steps.length - 1;
@@ -59,16 +61,33 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
   const target = step.target;
   const prevTarget = stepIndex > 0 ? recipe.steps[stepIndex - 1].target : 0;
   const remaining = Math.max(0, target - current);
-  const over = Math.max(0, current - target);
   const withinRange = Math.abs(current - target) <= TOLERANCE;
-  // Live countdown to this pour's planned completion, synced to the clock.
-  const pourRemaining = Math.max(0, Math.ceil(step.waitUntil - elapsed));
-  const tone =
-    current > target + TOLERANCE
-      ? "over"
-      : withinRange && current > 0
-        ? "ok"
-        : "active";
+  // Planned pour duration, anchored to when this pour actually started so the
+  // deadline stays correct after skipping earlier steps.
+  const pourDuration = Math.max(0, step.waitUntil - step.pourStart);
+  const pourBy = pourStartAt + pourDuration;
+  // Live countdown to this pour's completion, synced to the clock.
+  const pourRemaining = Math.max(0, Math.ceil(pourBy - elapsed));
+  // The pour amount is reached — now we wait out the rest before the next pour.
+  const reached = withinRange && current > 0;
+  // Absolute clock time the rest ends (i.e. the next pour begins).
+  const restUntil = phase === "resting" ? elapsed + rest : pourBy + step.restSeconds;
+  // ── Pace check ────────────────────────────────────────────────────────────
+  // The "in range / out" indicator tracks the *pour*, not the total brew: at
+  // any moment we compare the actual poured amount against where the pour
+  // should be right now, interpolated linearly from the previous target to
+  // this step's target over the planned pour duration. Ahead of pace → too
+  // fast (red); behind pace → too slow (blue).
+  const timeIntoPour = Math.min(pourDuration, Math.max(0, elapsed - pourStartAt));
+  const paceTarget =
+    pourDuration > 0
+      ? prevTarget + (target - prevTarget) * (timeIntoPour / pourDuration)
+      : target;
+  const paceDelta = current - paceTarget; // + ahead (fast), − behind (slow)
+  const onPace = phase === "resting" || reached || Math.abs(paceDelta) <= TOLERANCE;
+  const tooFast = !onPace && paceDelta > TOLERANCE;
+  const tooSlow = !onPace && paceDelta < -TOLERANCE;
+  const tone = onPace && current > 0 ? "ok" : tooFast ? "fast" : tooSlow ? "slow" : "active";
 
   // ── Simulation / timing loop ─────────────────────────────────────────────
   useEffect(() => {
@@ -97,6 +116,11 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
     }, 100);
     return () => window.clearInterval(id);
   }, [running, phase, target]);
+
+  // ── Keep a ref copy of the clock for reads inside event handlers ─────────
+  useEffect(() => {
+    elapsedRef.current = elapsed;
+  }, [elapsed]);
 
   // ── Record the accumulation trace (throttled to ~0.5 s) ──────────────────
   useEffect(() => {
@@ -166,6 +190,7 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
     setStepIndex((i) => i + 1);
     setFlow(0);
     if ((next.kind ?? "pour") === "pour") {
+      setPourStartAt(elapsedRef.current);
       setPhase("pouring");
     } else {
       // Stir/serve steps have no pour — jump straight into their countdown.
@@ -186,6 +211,7 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
   function handleReset() {
     setCurrent(prevTarget);
     setFlow(0);
+    setPourStartAt(elapsedRef.current);
     setPhase("pouring");
   }
 
@@ -282,11 +308,18 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
                     <h2 className={styles.stepTitle}>{step.label}</h2>
                     <p className={styles.stepSub}>
                       {isPour
-                        ? `Up to ${step.target} g • Pour by ${formatTime(step.waitUntil)}`
+                        ? phase === "resting" || reached
+                          ? `Up to ${step.target} g • wait until ${formatTime(restUntil)}`
+                          : `Up to ${step.target} g • Pour by ${formatTime(pourBy)}`
                         : kind === "serve"
                           ? "No pour — wait before serving"
                           : "No pour — agitate the brew"}
                     </p>
+                    {isPour &&
+                      step.instruction &&
+                      (phase === "resting" || reached) && (
+                        <p className={styles.stepHint}>{step.instruction}</p>
+                      )}
                   </div>
                   <div className={styles.totalTime}>
                     <span className={styles.clock}>
@@ -308,42 +341,6 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
                       tone={tone}
                     />
 
-                    <section className={`${styles.card} ${styles.cardCompact}`}>
-                      <span className={styles.cardLabel}>
-                        THIS STEP'S TARGET
-                      </span>
-                      <div className={styles.rangeHead}>
-                        <div className={styles.rangeItem}>
-                          <span className={styles.rangeCap}>Target</span>
-                          <span className={styles.rangeIdeal}>{target} g</span>
-                        </div>
-                        <div className={styles.rangeItemRight}>
-                          <span className={styles.rangeCap}>Actual</span>
-                          <span className={styles.rangeReal}>
-                            {Math.round(current)} g
-                          </span>
-                        </div>
-                        <div
-                          className={`${styles.badge} ${withinRange ? styles.badgeOk : styles.badgeOut}`}
-                        >
-                          <span className={styles.badgeMain}>
-                            {withinRange ? (
-                              <IconCheck size={14} />
-                            ) : (
-                              <IconAlert size={14} />
-                            )}
-                            {over > 0
-                              ? `+${Math.round(over)} g`
-                              : withinRange
-                                ? "In range"
-                                : "Out"}
-                          </span>
-                          <span className={styles.badgeSub}>
-                            ±{TOLERANCE} g
-                          </span>
-                        </div>
-                      </div>
-                    </section>
 
                     <section className={styles.card}>
                       <div className={styles.nextRow}>
@@ -358,6 +355,11 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
                               <span>
                                 Next: {nextStep ? nextStep.label : "Finish"} in{" "}
                                 <strong>{formatTime(Math.ceil(rest))}</strong>
+                              </span>
+                            ) : withinRange && current > 0 ? (
+                              <span>
+                                Next: {nextStep ? nextStep.label : "Finish"} in{" "}
+                                <strong>{formatTime(Math.ceil(step.restSeconds))}</strong>
                               </span>
                             ) : (
                               <span>
@@ -376,6 +378,50 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
                         </button>
                       </div>
                     </section>
+
+                    <section className={`${styles.card} ${styles.cardCompact}`}>
+                      <span className={styles.cardLabel}>
+                        THIS STEP'S TARGET
+                      </span>
+                      <div className={styles.rangeHead}>
+                        <div className={styles.rangeItem}>
+                          <span className={styles.rangeCap}>Target</span>
+                          <span className={styles.rangeIdeal}>{target} g</span>
+                        </div>
+                        <div className={styles.rangeItemRight}>
+                          <span className={styles.rangeCap}>Actual</span>
+                          <span className={styles.rangeReal}>
+                            {Math.round(current)} g
+                          </span>
+                        </div>
+                        <div
+                          className={`${styles.badge} ${
+                            onPace
+                              ? styles.badgeOk
+                              : tooFast
+                                ? styles.badgeFast
+                                : styles.badgeSlow
+                          }`}
+                        >
+                          <span className={styles.badgeMain}>
+                            {onPace ? (
+                              <IconCheck size={14} />
+                            ) : (
+                              <IconAlert size={14} />
+                            )}
+                            {onPace
+                              ? "In range"
+                              : tooFast
+                                ? `Out • +${Math.round(paceDelta)} g fast`
+                                : `Out • ${Math.round(paceDelta)} g slow`}
+                          </span>
+                          <span className={styles.badgeSub}>
+                            ± {TOLERANCE} g
+                          </span>
+                        </div>
+                      </div>
+                    </section>
+
 
                     <section className={styles.card}>
                       <div className={styles.pourToRow}>

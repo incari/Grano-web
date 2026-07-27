@@ -1,7 +1,7 @@
 import { IconDroplet } from "../icons/Icon";
 import styles from "./WaterGauge.module.scss";
 
-type Tone = "active" | "ok" | "over";
+type Tone = "active" | "ok" | "over" | "fast" | "slow";
 
 interface Props {
   current: number;
@@ -25,6 +25,8 @@ function polar(radius: number, deg: number) {
   return { x: CENTER + radius * Math.cos(a), y: CENTER + radius * Math.sin(a) };
 }
 
+const MARK_DOT_R = STROKE / 2; // dot matches the bar width so the tip covers it
+
 export default function WaterGauge({
   current,
   target,
@@ -35,6 +37,8 @@ export default function WaterGauge({
 }: Props) {
   const pct = total > 0 ? Math.min(current / total, 1) : 0;
   const trackLen = CIRC * ARC;
+  // The round tip is a disk of radius STROKE/2 at the geometric end, which sits
+  // exactly on the mark's angle — so the tip covers the same-sized dot perfectly.
   const progressLen = trackLen * pct;
 
   return (
@@ -72,16 +76,14 @@ export default function WaterGauge({
             .filter((m) => total > 0 && m < total)
             .map((m) => {
               const A = 135 + 270 * (m / total);
-              const inner = polar(R - STROKE / 2 - 3, A);
-              const outer = polar(R + STROKE / 2 + 3, A);
               const isActive = m === target;
+              const p = polar(R, A);
               return (
-                <line
+                <circle
                   key={m}
-                  x1={inner.x}
-                  y1={inner.y}
-                  x2={outer.x}
-                  y2={outer.y}
+                  cx={p.x}
+                  cy={p.y}
+                  r={MARK_DOT_R}
                   className={`${styles.tick} ${isActive ? styles.tickActive : ""}`}
                 />
               );

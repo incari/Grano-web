@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useBrewLogs } from "../../store/useStore";
 import { formatTime } from "../../utils/recipe";
 import type { BrewLog } from "../../types";
+import PageHeader from "../../components/PageHeader/PageHeader";
 import styles from "./Log.module.scss";
 
 function LogCard({
@@ -116,15 +117,15 @@ export default function Log() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <h1>
-          <ClipboardList
-            size={26}
-            strokeWidth={2.25}
-          />{" "}
-          History
-        </h1>
-      </header>
+      <PageHeader
+        icon={ClipboardList}
+        title="History"
+        subtitle={
+          logs.length
+            ? `${logs.length} brew${logs.length === 1 ? "" : "s"}`
+            : "Brew history"
+        }
+      />
 
       {logs.length === 0 && (
         <p className={styles.empty}>You haven't logged any brews yet.</p>

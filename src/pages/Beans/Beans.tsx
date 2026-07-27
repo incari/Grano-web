@@ -3,6 +3,7 @@ import { Bean, Camera, ScanLine, Loader2 } from "lucide-react";
 import type { CoffeeBean } from "../../types";
 import { useBeans } from "../../store/useStore";
 import { runOcr, parseBeanText } from "../../utils/beanOcr";
+import PageHeader from "../../components/PageHeader/PageHeader";
 import styles from "./Beans.module.scss";
 
 const ROAST_LEVELS: CoffeeBean["roastLevel"][] = [
@@ -73,21 +74,23 @@ export default function Beans() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <h1>
-          <Bean
-            size={26}
-            strokeWidth={2.25}
-          />{" "}
-          Beans
-        </h1>
-        <button
-          className={styles.addBtn}
-          onClick={() => setShowForm((s) => !s)}
-        >
-          {showForm ? "Cancel" : "+ Add"}
-        </button>
-      </header>
+      <PageHeader
+        icon={Bean}
+        title="Beans"
+        subtitle={
+          beans.length
+            ? `${beans.length} bean${beans.length === 1 ? "" : "s"}`
+            : "Your coffee pantry"
+        }
+        action={
+          <button
+            className={styles.addBtn}
+            onClick={() => setShowForm((s) => !s)}
+          >
+            {showForm ? "Cancel" : "+ Add"}
+          </button>
+        }
+      />
 
       {showForm && (
         <div className={styles.form}>

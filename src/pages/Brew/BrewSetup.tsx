@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import GuidedPour from "./GuidedPour";
+import PageHeader from "../../components/PageHeader/PageHeader";
 import styles from "./BrewSetup.module.scss";
 
 const METHOD_ICONS: Record<BrewMethod, LucideIcon> = {
@@ -100,16 +101,11 @@ export default function BrewSetup() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <h1>
-          <Coffee
-            size={26}
-            strokeWidth={2.25}
-          />{" "}
-          Grano
-        </h1>
-        <p>Gram-precise controlled brewing</p>
-      </header>
+      <PageHeader
+        icon={Coffee}
+        title="Grano"
+        subtitle="Gram-precise controlled brewing"
+      />
 
       <section className={styles.block}>
         <span className={styles.blockLabel}>METHOD</span>

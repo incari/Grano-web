@@ -22,6 +22,14 @@
   --gauge: var(--danger);
 }
 
+.fast {
+  --gauge: var(--danger);
+}
+
+.slow {
+  --gauge: var(--info);
+}
+
 .svg {
   display: block;
 }
@@ -36,15 +44,12 @@
 }
 
 .tick {
-  stroke: var(--text-faint);
-  stroke-width: 2;
-  stroke-linecap: round;
+  fill: var(--text-faint);
   opacity: 0.5;
 }
 
 .tickActive {
-  stroke: var(--gauge);
-  stroke-width: 3;
+  fill: var(--gauge);
   opacity: 1;
 }
 

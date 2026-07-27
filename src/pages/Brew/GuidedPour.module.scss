@@ -270,6 +270,13 @@
   margin: 4px 0 0;
 }
 
+.stepHint {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 6px 0 0;
+}
+
 .totalTime {
   background: var(--surface-alt);
   border-radius: 12px;
@@ -366,7 +373,6 @@
 .badge {
   margin-left: auto;
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 2px;
   padding: 7px 10px;
@@ -374,6 +380,8 @@
   font-size: 13px;
   font-weight: 600;
   flex-shrink: 0;
+
+
 }
 
 .badgeMain {
@@ -381,6 +389,7 @@
   align-items: center;
   gap: 4px;
   white-space: nowrap;
+
 }
 
 .badgeOk {
@@ -393,10 +402,21 @@
   color: var(--warn-text);
 }
 
+.badgeFast {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.badgeSlow {
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+
 .badgeSub {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   opacity: 0.8;
+  padding-left: 2px;
 }
 
 .rangeBar {
