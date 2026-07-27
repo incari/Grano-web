@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Bean, Star } from "lucide-react";
+import { ArrowLeft, Bean, Lightbulb, Star } from "lucide-react";
 import { useBrewLogs } from "../../store/useStore";
 import { formatTime } from "../../utils/recipe";
+import { buildDialInTips } from "../../utils/dialIn";
 import type { BrewReview } from "../../types";
 import styles from "./BrewDetails.module.scss";
 
@@ -66,6 +67,10 @@ export default function BrewDetails() {
 
   const [rating, setRating] = useState(log?.rating ?? 0);
   const [review, setReview] = useState<BrewReview>(log?.review ?? {});
+  const tips = useMemo(
+    () => buildDialInTips(review, rating),
+    [review, rating],
+  );
 
   if (!log) {
     return (
@@ -156,6 +161,22 @@ export default function BrewDetails() {
           onChange={(e) => setReview((r) => ({ ...r, liked: e.target.value }))}
         />
       </section>
+
+      {tips.length > 0 && (
+        <section className={`${styles.block} ${styles.tipsBlock}`}>
+          <span className={styles.blockLabel}>
+            <Lightbulb size={13} /> NEXT BREW
+          </span>
+          <ul className={styles.tipList}>
+            {tips.map((tip) => (
+              <li key={tip.id} className={styles.tip}>
+                <span className={styles.tipTitle}>{tip.title}</span>
+                <span className={styles.tipDetail}>{tip.detail}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <button
         className={styles.save}

@@ -50,6 +50,57 @@
   }
 }
 
+.scaleChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 108px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.scaleChipLive {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.scaleChipError {
+  border-color: color-mix(in srgb, var(--danger-text, #b33) 40%, var(--border));
+  color: var(--danger-text, #b33);
+}
+
+.scaleBanner {
+  padding: 6px 12px;
+  background: var(--danger-soft, #fde8e8);
+  color: var(--danger-text, #b33);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.adjustBanner {
+  padding: 6px 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
 /* ── Compact steps strip (pinned, de-emphasized overview) ───────────────── */
 .steps {
   display: flex;

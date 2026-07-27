@@ -1,15 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import WaterGauge from "../../components/WaterGauge/WaterGauge";
 import AccumulationChart from "../../components/AccumulationChart/AccumulationChart";
 import type { ChartPoint } from "../../components/AccumulationChart/AccumulationChart";
-import type { Recipe } from "../../utils/recipe";
+import type { PourStep, Recipe } from "../../utils/recipe";
 import { formatTime } from "../../utils/recipe";
+import { redistributeOvershoot } from "../../utils/overshoot";
 import { haptic } from "../../utils/haptics";
 import { beep } from "../../utils/sound";
+import { createWsScaleDriver } from "../../scale/drivers/websocket";
+import { useScale } from "../../scale/useScale";
 import {
   IconChevronLeft,
-  IconDots,
   IconClock,
   IconDroplet,
   IconTimer,
@@ -48,18 +50,34 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
   const [rest, setRest] = useState(0); // seconds left in current rest
   const [pourStartAt, setPourStartAt] = useState(0); // elapsed when this pour began
   const [history, setHistory] = useState<ChartPoint[]>([{ t: 0, g: 0 }]);
+  const [scaleError, setScaleError] = useState<string | null>(null);
+  // Live step targets — rewritten when a pour overshoots so the batch still ends on totalWater.
+  const [liveSteps, setLiveSteps] = useState<PourStep[]>(() =>
+    recipe.steps.map((s) => ({ ...s })),
+  );
+  const [adjustBanner, setAdjustBanner] = useState<string | null>(null);
+
+  const scaleDriver = useMemo(() => createWsScaleDriver(), []);
+  const scale = useScale(scaleDriver);
+  const live = scale.live;
 
   const finished = useRef(false);
   const started = useRef(false);
   const elapsedRef = useRef(0); // mirrors `elapsed` for reads inside handlers
+  const liveRef = useRef(live);
+  liveRef.current = live;
+  // Drop post-tare samples until the scale settles near zero (race with pour rate).
+  const tareHoldUntil = useRef(0);
+  const adjustedSteps = useRef(new Set<number>());
+  const completedPourKeys = useRef(new Set<string>());
 
-  const step = recipe.steps[stepIndex];
-  const isLastStep = stepIndex >= recipe.steps.length - 1;
+  const step = liveSteps[stepIndex] ?? recipe.steps[stepIndex];
+  const isLastStep = stepIndex >= liveSteps.length - 1;
   const kind = step.kind ?? "pour";
   const isPour = kind === "pour";
-  const nextStep = recipe.steps[stepIndex + 1];
+  const nextStep = liveSteps[stepIndex + 1];
   const target = step.target;
-  const prevTarget = stepIndex > 0 ? recipe.steps[stepIndex - 1].target : 0;
+  const prevTarget = stepIndex > 0 ? liveSteps[stepIndex - 1].target : 0;
   const remaining = Math.max(0, target - current);
   const withinRange = Math.abs(current - target) <= TOLERANCE;
   // Planned pour duration, anchored to when this pour actually started so the
@@ -89,23 +107,69 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
   const tooSlow = !onPace && paceDelta < -TOLERANCE;
   const tone = onPace && current > 0 ? "ok" : tooFast ? "fast" : tooSlow ? "slow" : "active";
 
+  // Live ESP32 / sim scale → gauge
+  useEffect(() => {
+    if (!live) return;
+    if (performance.now() < tareHoldUntil.current) {
+      // Still settling after tare — only accept near-zero readings.
+      if (scale.weight > 1.5) {
+        setCurrent(0);
+        setFlow(0);
+        return;
+      }
+      tareHoldUntil.current = 0;
+    }
+    setCurrent(scale.weight);
+    setFlow(scale.flow);
+  }, [live, scale.weight, scale.flow]);
+
+  // Drive the ESP32 sim pour pump from brew state (no-op on real hardware)
+  useEffect(() => {
+    if (!live) return;
+    if (running && phase === "pouring") {
+      scale.setPourRate(SIM_FLOW);
+    } else {
+      scale.setPourRate(0);
+    }
+  }, [live, running, phase, scale.setPourRate]);
+
+  // Disconnect scale when leaving the brew screen
+  useEffect(() => {
+    return () => {
+      void scaleDriver.disconnect();
+    };
+  }, [scaleDriver]);
+
   // ── Simulation / timing loop ─────────────────────────────────────────────
+  // Always ticks the brew clock + rest countdown. Weight is simulated only
+  // when no live scale is connected.
   useEffect(() => {
     if (!running || phase === "done") {
-      setFlow(0);
+      if (!liveRef.current) setFlow(0);
       return;
     }
     const id = window.setInterval(() => {
       const dt = 0.1;
       setElapsed((e) => e + dt);
 
+      if (liveRef.current) {
+        if (phase === "resting") {
+          setRest((r) => Math.max(0, r - dt));
+        }
+        return;
+      }
+
       if (phase === "pouring") {
         setCurrent((prev) => {
-          if (prev >= target) {
+          // Soft ceiling slightly above target so overshoot auto-adjust can fire offline.
+          const softCap = target + TOLERANCE + 2;
+          if (prev >= softCap) {
             return prev;
           }
           const jitter = 0.85 + Math.random() * 0.3;
-          const next = Math.min(target, prev + SIM_FLOW * jitter * dt);
+          // Occasional push past the mark (~15%) so later pours get redistributed.
+          const overshootBias = prev >= target - 3 && Math.random() < 0.18 ? 1.35 : 1;
+          const next = Math.min(softCap, prev + SIM_FLOW * jitter * overshootBias * dt);
           setFlow((next - prev) / dt);
           return next;
         });
@@ -152,11 +216,46 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
   }, []);
 
   // ── Transition: pour complete → rest (or done) ───────────────────────────
+  // Only while running — leftover live-scale weight must not auto-complete
+  // the step before the user hits Start.
   useEffect(() => {
-    if (phase !== "pouring" || target <= 0 || current < target) {
+    if (!running || phase !== "pouring" || target <= 0 || current < target) {
       return;
     }
+    const doneKey = `${stepIndex}:${target}`;
+    if (completedPourKeys.current.has(doneKey)) {
+      return;
+    }
+    completedPourKeys.current.add(doneKey);
+
     setFlow(0);
+    if (liveRef.current) {
+      scale.setPourRate(0);
+    }
+    // Overshoot: keep final batch size, shrink later pours proportionally.
+    if (
+      isPour &&
+      !isLastStep &&
+      current > target + 0.5 &&
+      !adjustedSteps.current.has(stepIndex)
+    ) {
+      adjustedSteps.current.add(stepIndex);
+      const { steps: nextSteps, overshootG, didAdjust } = redistributeOvershoot(
+        liveSteps,
+        stepIndex,
+        current,
+        recipe.totalWater,
+      );
+      if (didAdjust) {
+        setLiveSteps(nextSteps);
+        const g = Math.round(overshootG);
+        setAdjustBanner(
+          g > 0
+            ? `+${g} g over — later pours trimmed to keep ${recipe.totalWater} g total`
+            : null,
+        );
+      }
+    }
     haptic("success");
     if (isLastStep) {
       setPhase("done");
@@ -164,7 +263,27 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
       setRest(step.restSeconds);
       setPhase("resting");
     }
-  }, [current, target, phase, isLastStep, step.restSeconds]);
+    // liveSteps intentionally omitted — snapshot at completion is enough
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    running,
+    current,
+    target,
+    phase,
+    isLastStep,
+    isPour,
+    stepIndex,
+    step.restSeconds,
+    recipe.totalWater,
+    scale.setPourRate,
+  ]);
+
+  // Clear the overshoot toast after a moment
+  useEffect(() => {
+    if (!adjustBanner) return;
+    const id = window.setTimeout(() => setAdjustBanner(null), 4500);
+    return () => window.clearTimeout(id);
+  }, [adjustBanner]);
 
   // ── Auto progression: rest/action elapsed → next step (or done) ──────────
   useEffect(() => {
@@ -186,7 +305,7 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
       handleFinish();
       return;
     }
-    const next = recipe.steps[stepIndex + 1];
+    const next = liveSteps[stepIndex + 1];
     setStepIndex((i) => i + 1);
     setFlow(0);
     if ((next.kind ?? "pour") === "pour") {
@@ -200,20 +319,67 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
     }
   }
 
-  function toggleRun() {
-    if (!started.current) {
-      started.current = true;
-      beep("step");
-    }
-    setRunning((r) => !r);
+  async function tareLive() {
+    tareHoldUntil.current = performance.now() + 350;
+    await scale.tare();
+    setCurrent(0);
+    setFlow(0);
   }
 
-  function handleReset() {
-    setCurrent(prevTarget);
-    setFlow(0);
+  async function toggleRun() {
+    const next = !running;
+    if (!started.current && next) {
+      started.current = true;
+      beep("step");
+      // Fresh zero at brew start so leftover sim/hardware weight
+      // cannot immediately trip the step-complete threshold.
+      if (live) {
+        await tareLive();
+      }
+    }
+    if (live) {
+      scale.setPourRate(next && phase === "pouring" ? SIM_FLOW : 0);
+    }
+    setRunning(next);
+  }
+
+  async function handleReset() {
+    if (live) {
+      await tareLive();
+    } else {
+      setCurrent(prevTarget);
+      setFlow(0);
+    }
     setPourStartAt(elapsedRef.current);
     setPhase("pouring");
+    if (live && running) {
+      scale.setPourRate(SIM_FLOW);
+    }
   }
+
+  async function handleScaleToggle() {
+    setScaleError(null);
+    try {
+      if (live || scale.connection === "connecting") {
+        scale.setPourRate(0);
+        await scale.disconnect();
+      } else {
+        await scale.connect();
+        await tareLive();
+      }
+    } catch {
+      setScaleError("Can't reach scale sim — run yarn scale:sim");
+    }
+  }
+
+  const scaleStatusLabel =
+    scale.connection === "connected"
+      ? "Live scale"
+      : scale.connection === "connecting"
+        ? "Connecting…"
+        : scale.connection === "error"
+          ? "Scale error"
+          : "Simulated";
 
   function handleFinish() {
     if (finished.current) {
@@ -246,18 +412,42 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
           </p>
         </div>
         <button
-          className={styles.iconBtn}
-          aria-label="Options"
+          type="button"
+          className={`${styles.scaleChip} ${
+            live
+              ? styles.scaleChipLive
+              : scale.connection === "error"
+                ? styles.scaleChipError
+                : ""
+          }`}
+          onClick={() => void handleScaleToggle()}
+          title={
+            live
+              ? "Disconnect live scale"
+              : "Connect to ESP32 scale simulator (ws://127.0.0.1:8787)"
+          }
+          aria-label={live ? "Disconnect scale" : "Connect scale"}
         >
-          <IconDots size={22} />
+          <IconScale size={14} />
+          <span>{scaleStatusLabel}</span>
         </button>
       </header>
+      {scaleError && (
+        <div className={styles.scaleBanner} role="status">
+          {scaleError}
+        </div>
+      )}
+      {adjustBanner && (
+        <div className={styles.adjustBanner} role="status">
+          {adjustBanner}
+        </div>
+      )}
 
       <nav
         className={styles.steps}
         aria-label="Pour steps"
       >
-        {recipe.steps.map((s, i) => {
+        {liveSteps.map((s, i) => {
           const state =
             i < stepIndex ? "done" : i === stepIndex ? "active" : "todo";
           return (
@@ -275,7 +465,7 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
               >
                 {s.label}
               </span>
-              {i < recipe.steps.length - 1 && (
+              {i < liveSteps.length - 1 && (
                 <div
                   className={`${styles.stepConn} ${i < stepIndex ? styles.stepConnDone : ""}`}
                 />
@@ -336,7 +526,7 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
                       current={current}
                       target={target}
                       total={recipe.totalWater}
-                      marks={[...new Set(recipe.steps.map((s) => s.target))]}
+                      marks={[...new Set(liveSteps.map((s) => s.target))]}
                       flow={flow}
                       tone={tone}
                     />
@@ -444,24 +634,26 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
                           </span>
                         </div>
 
-                        <div className={styles.adjust}>
-                          <button
-                            className={styles.stepBtn}
-                            onClick={() =>
-                              setCurrent((c) => Math.max(0, c - 5))
-                            }
-                            aria-label="Lower actual poured amount by 5 grams"
-                          >
-                            − 5
-                          </button>
-                          <button
-                            className={styles.stepBtn}
-                            onClick={() => setCurrent((c) => c + 5)}
-                            aria-label="Raise actual poured amount by 5 grams"
-                          >
-                            + 5
-                          </button>
-                        </div>
+                        {!live && (
+                          <div className={styles.adjust}>
+                            <button
+                              className={styles.stepBtn}
+                              onClick={() =>
+                                setCurrent((c) => Math.max(0, c - 5))
+                              }
+                              aria-label="Lower actual poured amount by 5 grams"
+                            >
+                              − 5
+                            </button>
+                            <button
+                              className={styles.stepBtn}
+                              onClick={() => setCurrent((c) => c + 5)}
+                              aria-label="Raise actual poured amount by 5 grams"
+                            >
+                              + 5
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </section>
                   </>
@@ -521,7 +713,7 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
                 <section className={styles.card}>
                   <span className={styles.cardLabel}>RECIPE COMPARISON</span>
                   <AccumulationChart
-                    recipe={recipe}
+                    recipe={{ ...recipe, steps: liveSteps }}
                     history={history}
                     elapsed={elapsed}
                     current={current}

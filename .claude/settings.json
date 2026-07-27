@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"https://api.github.com/repos/jniebuhr/gaggimate/git/trees/main?recursive=1\")",
+      "WebSearch",
+      "Bash(curl -s \"https://api.github.com/repos/jniebuhr/gaggimate/git/trees/main?recursive=1\" -o /private/tmp/claude-502/-Users-m-racana-grano/9a25f467-3f03-4a15-bc23-3a5ad420d41b/scratchpad/tree.json)"
+    ]
+  }
+}

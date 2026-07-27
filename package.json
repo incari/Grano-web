@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "scale:sim": "node scripts/esp32-sim.mjs",
+    "scale:sim:restart": "lsof -ti:8787 | xargs kill -9 2>/dev/null; node scripts/esp32-sim.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.26.0",

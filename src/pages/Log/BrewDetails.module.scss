@@ -145,6 +145,45 @@
   box-sizing: border-box;
 }
 
+.tipsBlock {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--hairline));
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
+}
+
+.tipsBlock .blockLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+}
+
+.tipList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tipTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.tipDetail {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
 .save {
   width: 100%;
   margin-top: 16px;
