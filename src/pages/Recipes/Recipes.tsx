@@ -6,21 +6,36 @@ import {
   Pencil,
   Trash2,
   Play,
+  ArrowLeft,
   X,
   Thermometer,
   Droplet,
+  Bean,
 } from "lucide-react";
 import type {
   BrewMethod,
+  EspressoSpec,
   GrindSize,
   RecipeStep,
   SavedRecipe,
 } from "../../types";
 import { BREW_PRESETS } from "../../utils/presets";
 import { buildRecipeFromSaved } from "../../utils/recipe";
+import { isDefaultRecipeId } from "../../utils/defaultRecipes";
+import type { BrewFinishPayload } from "../../utils/brewTelemetry";
+import {
+  BASKET_SIZES,
+  ESPRESSO_DEFAULTS,
+  brewRatio,
+  buildEspressoRunFromSaved,
+  espressoSpecFor,
+  shotFlow,
+  type EspressoFinishPayload,
+} from "../../utils/espresso";
 import PageHeader from "../../components/PageHeader/PageHeader";
-import { useRecipes, useBrewLogs } from "../../store/useStore";
+import { useRecipes, useBrewLogs, useBeans } from "../../store/useStore";
 import GuidedPour from "../Brew/GuidedPour";
+import EspressoShot from "../Brew/EspressoShot";
 import styles from "./Recipes.module.scss";
 
 const GRINDS: GrindSize[] = [
@@ -57,14 +72,23 @@ function emptyRecipe(): SavedRecipe {
 export default function Recipes() {
   const { recipes, addRecipe, updateRecipe, deleteRecipe } = useRecipes();
   const { addLog } = useBrewLogs();
+  const { beans } = useBeans();
   const [draft, setDraft] = useState<SavedRecipe | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [brewing, setBrewing] = useState<SavedRecipe | null>(null);
+  /** Bean picked on this screen, applied to the next brew. */
+  const [brewBeanId, setBrewBeanId] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   const totalWater = draft
     ? draft.steps.reduce((sum, s) => sum + s.water, 0)
     : 0;
+  const isEspressoDraft = draft?.method === "espresso";
+  const draftSpec = draft ? espressoSpecFor(draft) : null;
+  // Guard against a bean being deleted while it is selected here.
+  const selectedBeanId = beans.some((b) => b.id === brewBeanId)
+    ? brewBeanId
+    : "";
 
   // Two-phase shared-element transition: once the tapped card's name carries the
   // view-transition-name, capture it and morph it into the brew header title.
@@ -108,7 +132,11 @@ export default function Recipes() {
   }
 
   function save() {
-    if (!draft || !draft.name.trim() || draft.steps.length === 0) {
+    if (!draft || !draft.name.trim()) {
+      return;
+    }
+    // Espresso recipes carry a spec instead of pour steps.
+    if (draft.method !== "espresso" && draft.steps.length === 0) {
       return;
     }
     if (isNew) {
@@ -121,6 +149,36 @@ export default function Recipes() {
 
   function patch(fields: Partial<SavedRecipe>) {
     setDraft((d) => (d ? { ...d, ...fields } : d));
+  }
+
+  /** Switching to espresso seeds a spec; steps are kept but unused. */
+  function selectMethod(method: BrewMethod) {
+    setDraft((d) => {
+      if (!d) {
+        return d;
+      }
+      if (method !== "espresso") {
+        return { ...d, method };
+      }
+      return {
+        ...d,
+        method,
+        steps: [],
+        espresso: d.espresso ?? {
+          ...ESPRESSO_DEFAULTS,
+          yieldG: Math.round(d.dose * 2),
+          basketG: Math.round(d.dose),
+        },
+      };
+    });
+  }
+
+  function patchEspresso(fields: Partial<EspressoSpec>) {
+    setDraft((d) =>
+      d
+        ? { ...d, espresso: { ...espressoSpecFor(d), ...fields } }
+        : d,
+    );
   }
 
   function patchStep(id: string, fields: Partial<RecipeStep>) {
@@ -146,23 +204,77 @@ export default function Recipes() {
     );
   }
 
-  function finishBrew(elapsed: number) {
+  function finishBrew(payload: BrewFinishPayload) {
     if (!brewing) {
       return;
     }
     const built = buildRecipeFromSaved(brewing);
+    const waterWeight =
+      payload.finalWeight > 0 ? payload.finalWeight : built.totalWater;
+    const bean = beans.find((b) => b.id === selectedBeanId);
     addLog({
       id: crypto.randomUUID(),
+      beanId: bean?.id,
+      beanName: bean?.name,
       method: brewing.method,
       dose: brewing.dose,
-      waterWeight: built.totalWater,
-      ratio: Math.round((built.totalWater / brewing.dose) * 10) / 10,
-      brewTimeSeconds: elapsed,
+      waterWeight,
+      ratio:
+        brewing.dose > 0
+          ? Math.round((waterWeight / brewing.dose) * 10) / 10
+          : Math.round((built.totalWater / brewing.dose) * 10) / 10,
+      brewTimeSeconds: payload.elapsed,
       rating: 0,
       notes: "",
       brewedAt: new Date().toISOString(),
+      recipeName: brewing.name,
+      temperature: brewing.temperature,
+      grindSize: brewing.grindSize,
+      grindSetting: brewing.grindSetting,
+      trace: payload.trace,
+      stepActuals: payload.stepActuals,
+      consistencyScore: payload.consistencyScore,
     });
     setBrewing(null);
+  }
+
+  function finishShot(payload: EspressoFinishPayload) {
+    if (!brewing) {
+      return;
+    }
+    const spec = espressoSpecFor(brewing);
+    const yieldG = payload.finalWeight > 0 ? payload.finalWeight : spec.yieldG;
+    const bean = beans.find((b) => b.id === selectedBeanId);
+    addLog({
+      id: crypto.randomUUID(),
+      beanId: bean?.id,
+      beanName: bean?.name,
+      method: brewing.method,
+      dose: brewing.dose,
+      waterWeight: yieldG,
+      ratio: brewRatio(brewing.dose, yieldG),
+      brewTimeSeconds: payload.elapsed,
+      rating: 0,
+      notes: "",
+      brewedAt: new Date().toISOString(),
+      recipeName: brewing.name,
+      temperature: brewing.temperature,
+      grindSize: brewing.grindSize,
+      grindSetting: brewing.grindSetting,
+      trace: payload.trace,
+      espressoShot: payload.shot,
+    });
+    setBrewing(null);
+  }
+
+  if (brewing && brewing.method === "espresso") {
+    return (
+      <EspressoShot
+        run={buildEspressoRunFromSaved(brewing)}
+        onFinish={finishShot}
+        onExit={() => setBrewing(null)}
+      />
+    );
   }
 
   if (brewing) {
@@ -179,14 +291,23 @@ export default function Recipes() {
     <div className={styles.page}>
       <PageHeader
         icon={NotebookText}
-        title="Recipes"
+        title={draft ? (isNew ? "New recipe" : "Edit recipe") : "Recipes"}
         subtitle={
-          recipes.length
-            ? `${recipes.length} recipe${recipes.length === 1 ? "" : "s"}`
-            : "Saved brews"
+          draft
+            ? "Recipes"
+            : recipes.length
+              ? `${recipes.length} recipe${recipes.length === 1 ? "" : "s"}`
+              : "Saved brews"
         }
         action={
-          !draft && (
+          draft ? (
+            <button
+              className={styles.addBtn}
+              onClick={cancel}
+            >
+              <ArrowLeft size={16} /> Recipes
+            </button>
+          ) : (
             <button
               className={styles.addBtn}
               onClick={startAdd}
@@ -213,7 +334,7 @@ export default function Recipes() {
                 <button
                   key={p.method}
                   className={`${styles.chip} ${draft.method === p.method ? styles.chipActive : ""}`}
-                  onClick={() => patch({ method: p.method as BrewMethod })}
+                  onClick={() => selectMethod(p.method as BrewMethod)}
                 >
                   {p.label}
                 </button>
@@ -275,6 +396,165 @@ export default function Recipes() {
             </div>
           </div>
 
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>GRIND SETTING</span>
+            <input
+              className={styles.input}
+              placeholder="e.g. 22 clicks · Niche 1.8"
+              value={draft.grindSetting ?? ""}
+              onChange={(e) =>
+                patch({
+                  grindSetting: e.target.value.trim()
+                    ? e.target.value
+                    : undefined,
+                })
+              }
+            />
+          </div>
+
+          {isEspressoDraft && draftSpec ? (
+            <>
+              <div className={styles.field}>
+                <div className={styles.stepsHead}>
+                  <span className={styles.fieldLabel}>SHOT</span>
+                  <span className={styles.totalWater}>
+                    <Droplet size={13} /> 1:
+                    {brewRatio(draft.dose, draftSpec.yieldG)} ·{" "}
+                    {shotFlow(draftSpec.yieldG, draftSpec.shotSeconds)} g/s
+                  </span>
+                </div>
+                <div className={styles.row}>
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>YIELD OUT</span>
+                    <div className={styles.stepper}>
+                      <button
+                        onClick={() =>
+                          patchEspresso({
+                            yieldG: Math.max(1, draftSpec.yieldG - 1),
+                          })
+                        }
+                      >
+                        −
+                      </button>
+                      <span>{draftSpec.yieldG} g</span>
+                      <button
+                        onClick={() =>
+                          patchEspresso({ yieldG: draftSpec.yieldG + 1 })
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>SHOT TIME</span>
+                    <div className={styles.stepper}>
+                      <button
+                        onClick={() =>
+                          patchEspresso({
+                            shotSeconds: Math.max(
+                              5,
+                              draftSpec.shotSeconds - 1,
+                            ),
+                          })
+                        }
+                      >
+                        −
+                      </button>
+                      <span>{draftSpec.shotSeconds}s</span>
+                      <button
+                        onClick={() =>
+                          patchEspresso({
+                            shotSeconds: draftSpec.shotSeconds + 1,
+                          })
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.row}>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>PRE-INFUSION</span>
+                  <div className={styles.stepper}>
+                    <button
+                      onClick={() =>
+                        patchEspresso({
+                          preInfusionSeconds: Math.max(
+                            0,
+                            draftSpec.preInfusionSeconds - 1,
+                          ),
+                        })
+                      }
+                    >
+                      −
+                    </button>
+                    <span>{draftSpec.preInfusionSeconds}s</span>
+                    <button
+                      onClick={() =>
+                        patchEspresso({
+                          preInfusionSeconds:
+                            draftSpec.preInfusionSeconds + 1,
+                        })
+                      }
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>PRESSURE</span>
+                  <div className={styles.stepper}>
+                    <button
+                      onClick={() =>
+                        patchEspresso({
+                          pressureBar: Math.max(
+                            1,
+                            Math.round(
+                              ((draftSpec.pressureBar ?? 9) - 0.5) * 10,
+                            ) / 10,
+                          ),
+                        })
+                      }
+                    >
+                      −
+                    </button>
+                    <span>{draftSpec.pressureBar ?? 9} bar</span>
+                    <button
+                      onClick={() =>
+                        patchEspresso({
+                          pressureBar:
+                            Math.round(
+                              ((draftSpec.pressureBar ?? 9) + 0.5) * 10,
+                            ) / 10,
+                        })
+                      }
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>BASKET</span>
+                <div className={styles.chips}>
+                  {BASKET_SIZES.map((g) => (
+                    <button
+                      key={g}
+                      className={`${styles.chip} ${draftSpec.basketG === g ? styles.chipActive : ""}`}
+                      onClick={() => patchEspresso({ basketG: g })}
+                    >
+                      {g} g
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
           <div className={styles.field}>
             <div className={styles.stepsHead}>
               <span className={styles.fieldLabel}>POUR STEPS</span>
@@ -367,6 +647,7 @@ export default function Recipes() {
               <Plus size={16} /> Add step
             </button>
           </div>
+          )}
 
           <div className={styles.formActions}>
             <button
@@ -386,6 +667,35 @@ export default function Recipes() {
         </div>
       ) : (
         <>
+          <div className={styles.beanBar}>
+            <span className={styles.fieldLabel}>
+              <Bean size={13} /> COFFEE BEAN
+            </span>
+            {beans.length === 0 ? (
+              <p className={styles.beanHint}>
+                No beans yet — add one in Beans to link it to your brews.
+              </p>
+            ) : (
+              <div className={styles.chips}>
+                <button
+                  className={`${styles.chip} ${selectedBeanId === "" ? styles.chipActive : ""}`}
+                  onClick={() => setBrewBeanId("")}
+                >
+                  Unspecified
+                </button>
+                {beans.map((b) => (
+                  <button
+                    key={b.id}
+                    className={`${styles.chip} ${selectedBeanId === b.id ? styles.chipActive : ""}`}
+                    onClick={() => setBrewBeanId(b.id)}
+                  >
+                    {b.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {recipes.length === 0 && (
             <p className={styles.empty}>
               No recipes yet. Create one to brew it with a single tap.
@@ -395,6 +705,8 @@ export default function Recipes() {
           <div className={styles.list}>
             {recipes.map((r) => {
               const water = r.steps.reduce((sum, s) => sum + s.water, 0);
+              const isEspresso = r.method === "espresso";
+              const spec = isEspresso ? espressoSpecFor(r) : null;
               return (
                 <div
                   key={r.id}
@@ -423,20 +735,36 @@ export default function Recipes() {
                       >
                         <Pencil size={16} />
                       </button>
-                      <button
-                        onClick={() => deleteRecipe(r.id)}
-                        aria-label="Delete"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      {!isDefaultRecipeId(r.id) && (
+                        <button
+                          onClick={() => deleteRecipe(r.id)}
+                          aria-label="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className={styles.cardStats}>
                     <span>{r.dose} g coffee</span>
-                    <span>{water} g water</span>
-                    <span>{r.temperature}°C</span>
-                    <span>{r.grindSize.replace("-", " ")}</span>
-                    <span>{r.steps.length} steps</span>
+                    {spec ? (
+                      <>
+                        <span>{spec.yieldG} g out</span>
+                        <span>1:{brewRatio(r.dose, spec.yieldG)}</span>
+                        <span>{spec.shotSeconds}s</span>
+                        <span>{r.grindSize.replace("-", " ")}</span>
+                        {spec.preInfusionSeconds > 0 && (
+                          <span>{spec.preInfusionSeconds}s pre</span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <span>{water} g water</span>
+                        <span>{r.temperature}°C</span>
+                        <span>{r.grindSize.replace("-", " ")}</span>
+                        <span>{r.steps.length} steps</span>
+                      </>
+                    )}
                   </div>
                   <button
                     className={styles.brew}

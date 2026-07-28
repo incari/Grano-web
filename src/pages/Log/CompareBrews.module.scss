@@ -1,0 +1,156 @@
+.page {
+  padding: 16px 16px 96px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.iconBtn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    background: var(--border);
+  }
+}
+
+.title {
+  h1 {
+    font-size: 20px;
+    font-weight: 800;
+    margin: 0;
+  }
+
+  p {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+}
+
+.empty {
+  text-align: center;
+  color: var(--text-muted);
+  margin-top: 40px;
+  line-height: 1.4;
+}
+
+.pickers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  select {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    padding: 10px 12px;
+    font: inherit;
+  }
+}
+
+.swatchA,
+.swatchB {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.swatchA {
+  background: var(--accent);
+}
+
+.swatchB {
+  background: var(--info-text, #3b82f6);
+}
+
+.chartCard {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: var(--shadow-sm);
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.lineA {
+  stroke: var(--accent);
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lineB {
+  stroke: var(--info-text, #3b82f6);
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 5 4;
+}
+
+.axis {
+  fill: var(--text-faint);
+  font-size: 10px;
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.metaCol {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+
+  strong {
+    font-size: 14px;
+    color: var(--text);
+    text-transform: capitalize;
+  }
+}
+
+.meta_a {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--hairline));
+}
+
+.meta_b {
+  border-color: color-mix(in srgb, var(--info-text, #3b82f6) 35%, var(--hairline));
+}

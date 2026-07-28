@@ -10,6 +10,8 @@ interface Props {
   marks: number[];
   flow: number;
   tone: Tone;
+  /** Caption above the big number (defaults to the pour-over wording). */
+  label?: string;
 }
 
 const R = 96;
@@ -34,6 +36,7 @@ export default function WaterGauge({
   marks,
   flow,
   tone,
+  label = "CURRENT WATER",
 }: Props) {
   const pct = total > 0 ? Math.min(current / total, 1) : 0;
   const trackLen = CIRC * ARC;
@@ -92,7 +95,7 @@ export default function WaterGauge({
       </svg>
 
       <div className={styles.center}>
-        <span className={styles.label}>CURRENT WATER</span>
+        <span className={styles.label}>{label}</span>
         <div className={styles.value}>
           <span className={styles.number}>{Math.round(current)}</span>
           <span className={styles.unit}>g</span>

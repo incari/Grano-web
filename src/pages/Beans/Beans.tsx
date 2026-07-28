@@ -1,8 +1,18 @@
-import { useRef, useState } from "react";
-import { Bean, Camera, ScanLine, Loader2 } from "lucide-react";
-import type { CoffeeBean } from "../../types";
-import { useBeans } from "../../store/useStore";
+import { useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Bean,
+  Camera,
+  ScanLine,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  Star,
+} from "lucide-react";
+import type { CoffeeBean, BrewLog } from "../../types";
+import { useBeans, useBrewLogs } from "../../store/useStore";
 import { runOcr, parseBeanText } from "../../utils/beanOcr";
+import { formatTime } from "../../utils/recipe";
 import PageHeader from "../../components/PageHeader/PageHeader";
 import styles from "./Beans.module.scss";
 
@@ -24,13 +34,32 @@ function emptyBean(): Omit<CoffeeBean, "id" | "addedAt"> {
   };
 }
 
+function logsForBean(logs: BrewLog[], bean: CoffeeBean): BrewLog[] {
+  return logs.filter(
+    (l) =>
+      l.beanId === bean.id ||
+      (!l.beanId && l.beanName && l.beanName === bean.name),
+  );
+}
+
 export default function Beans() {
+  const navigate = useNavigate();
   const { beans, addBean, deleteBean } = useBeans();
+  const { logs } = useBrewLogs();
   const [showForm, setShowForm] = useState(false);
   const [draft, setDraft] = useState(emptyBean());
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const brewCountByBean = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const bean of beans) {
+      map.set(bean.id, logsForBean(logs, bean).length);
+    }
+    return map;
+  }, [beans, logs]);
 
   async function scan(image: string) {
     setScanning(true);
@@ -206,39 +235,102 @@ export default function Beans() {
       )}
 
       <div className={styles.list}>
-        {beans.map((b) => (
-          <div
-            key={b.id}
-            className={styles.card}
-          >
-            {b.photoUrl ? (
-              <div
-                className={styles.thumb}
-                style={{ backgroundImage: `url(${b.photoUrl})` }}
-              />
-            ) : (
-              <div className={`${styles.thumb} ${styles.thumbEmpty}`}>
-                <Bean size={28} />
+        {beans.map((b) => {
+          const count = brewCountByBean.get(b.id) ?? 0;
+          const open = expandedId === b.id;
+          const beanLogs = open ? logsForBean(logs, b) : [];
+          return (
+            <div key={b.id} className={styles.cardWrap}>
+              <div className={styles.card}>
+                {b.photoUrl ? (
+                  <div
+                    className={styles.thumb}
+                    style={{ backgroundImage: `url(${b.photoUrl})` }}
+                  />
+                ) : (
+                  <div className={`${styles.thumb} ${styles.thumbEmpty}`}>
+                    <Bean size={28} />
+                  </div>
+                )}
+                <div className={styles.info}>
+                  <span className={styles.name}>{b.name}</span>
+                  {b.origin && (
+                    <span className={styles.origin}>{b.origin}</span>
+                  )}
+                  <div className={styles.meta}>
+                    {b.roaster && <span>{b.roaster}</span>}
+                    <span className={styles.roastTag}>{b.roastLevel}</span>
+                    <span className={styles.brewCount}>
+                      {count} brew{count === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  {b.notes && <p className={styles.notes}>{b.notes}</p>}
+                  {count > 0 && (
+                    <button
+                      type="button"
+                      className={styles.historyToggle}
+                      onClick={() =>
+                        setExpandedId((id) => (id === b.id ? null : b.id))
+                      }
+                    >
+                      {open ? (
+                        <>
+                          Hide brews <ChevronUp size={14} />
+                        </>
+                      ) : (
+                        <>
+                          Show brews <ChevronDown size={14} />
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+                <button
+                  className={styles.del}
+                  onClick={() => deleteBean(b.id)}
+                  aria-label="Delete"
+                >
+                  ×
+                </button>
               </div>
-            )}
-            <div className={styles.info}>
-              <span className={styles.name}>{b.name}</span>
-              {b.origin && <span className={styles.origin}>{b.origin}</span>}
-              <div className={styles.meta}>
-                {b.roaster && <span>{b.roaster}</span>}
-                <span className={styles.roastTag}>{b.roastLevel}</span>
-              </div>
-              {b.notes && <p className={styles.notes}>{b.notes}</p>}
+              {open && (
+                <div className={styles.brewList}>
+                  {beanLogs.map((log) => (
+                    <button
+                      key={log.id}
+                      type="button"
+                      className={styles.brewRow}
+                      onClick={() => navigate(`/log/${log.id}`)}
+                    >
+                      <div className={styles.brewRowTop}>
+                        <span className={styles.brewMethod}>
+                          {log.recipeName || log.method.replace("-", " ")}
+                        </span>
+                        <span className={styles.brewDate}>
+                          {new Date(log.brewedAt).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        </span>
+                      </div>
+                      <div className={styles.brewRowStats}>
+                        <span>
+                          {log.dose}g · 1:{log.ratio}
+                        </span>
+                        <span>{formatTime(log.brewTimeSeconds)}</span>
+                        {log.rating > 0 && (
+                          <span className={styles.brewRating}>
+                            <Star size={11} /> {log.rating}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <button
-              className={styles.del}
-              onClick={() => deleteBean(b.id)}
-              aria-label="Delete"
-            >
-              ×
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -1,6 +1,12 @@
 import { useLayoutEffect, useState } from "react";
 import { flushSync } from "react-dom";
-import { ClipboardList, Bean, Star, SlidersHorizontal } from "lucide-react";
+import {
+  ClipboardList,
+  Bean,
+  Star,
+  SlidersHorizontal,
+  GitCompare,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useBrewLogs } from "../../store/useStore";
 import { formatTime } from "../../utils/recipe";
@@ -82,6 +88,14 @@ function LogCard({
           <small>time</small>
         </div>
       </div>
+      {(log.grindSetting || log.consistencyScore != null) && (
+        <div className={styles.extra}>
+          {log.grindSetting && <span>Grind {log.grindSetting}</span>}
+          {log.consistencyScore != null && (
+            <span>Consistency {log.consistencyScore}</span>
+          )}
+        </div>
+      )}
       <div className={styles.rating}>
         {Array.from({ length: 5 }, (_, i) => (
           <Star
@@ -113,7 +127,9 @@ function LogCard({
 }
 
 export default function Log() {
+  const navigate = useNavigate();
   const { logs, deleteLog } = useBrewLogs();
+  const canCompare = logs.filter((l) => (l.trace?.length ?? 0) >= 2).length >= 2;
 
   return (
     <div className={styles.page}>
@@ -124,6 +140,18 @@ export default function Log() {
           logs.length
             ? `${logs.length} brew${logs.length === 1 ? "" : "s"}`
             : "Brew history"
+        }
+        action={
+          canCompare ? (
+            <button
+              type="button"
+              className={styles.compareBtn}
+              onClick={() => navigate("/log/compare")}
+            >
+              <GitCompare size={15} />
+              Compare
+            </button>
+          ) : undefined
         }
       />
 

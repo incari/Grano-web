@@ -1,0 +1,487 @@
+/* Espresso shot screen — mirrors GuidedPour chrome, yield-first content. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  flex: 1;
+  text-align: center;
+
+  h1 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  p {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin: 1px 0 0;
+  }
+}
+
+.iconBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  font-size: 24px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+
+  &:active {
+    background: var(--border);
+  }
+}
+
+.scaleChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 108px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.scaleChipLive {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.scaleChipError {
+  border-color: color-mix(in srgb, var(--danger-text, #b33) 40%, var(--border));
+  color: var(--danger-text, #b33);
+}
+
+.scaleBanner {
+  padding: 6px 12px;
+  background: var(--danger-soft, #fde8e8);
+  color: var(--danger-text, #b33);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ── Phase strip ────────────────────────────────────────────────────────── */
+.phases {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.phaseItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.phaseDot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.phaseDot_done {
+  background: var(--success);
+  color: #fff;
+}
+
+.phaseDot_active {
+  background: var(--surface);
+  color: var(--accent);
+  border: 2px solid var(--accent);
+}
+
+.phaseDot_todo {
+  background: var(--border-strong);
+  color: var(--text-muted);
+}
+
+.phaseName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.phaseNameActive {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.phaseConn {
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--border-strong);
+  flex-shrink: 0;
+}
+
+.phaseConnDone {
+  background: var(--accent);
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 14px calc(104px + env(safe-area-inset-bottom, 0)) 14px;
+}
+
+.stepHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.stepTitle {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.stepSub {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+
+.totalTime {
+  background: var(--surface-alt);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.clock {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.totalLabel {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 14px;
+}
+
+.cardLabel {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+}
+
+/* ── Shot clock ─────────────────────────────────────────────────────────── */
+.shotRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.shotClock {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+
+  small {
+    font-size: 18px;
+    font-weight: 700;
+    margin-left: 2px;
+  }
+}
+
+.shotMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-faint);
+
+  span:first-child {
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+}
+
+.badge {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.badgeMain {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.badgeSub {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.badgeOk {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.badgeFast {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.badgeSlow {
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+
+/* ── Shot parameters ────────────────────────────────────────────────────── */
+.specGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px 8px;
+  margin-top: 12px;
+
+  >div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+}
+
+.specCap {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.specVal {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Yield card ─────────────────────────────────────────────────────────── */
+.yieldRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.yieldValue {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--accent);
+  margin-top: 2px;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+
+  small {
+    font-size: 18px;
+    font-weight: 700;
+  }
+}
+
+.yieldDelta {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.adjust {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.stepBtn {
+  border: 1.5px solid var(--accent);
+  background: var(--surface);
+  color: var(--accent);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:active {
+    background: var(--accent-soft);
+  }
+}
+
+.flagBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 14px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:active {
+    background: var(--bg);
+  }
+}
+
+.flagBtnOn {
+  border-color: color-mix(in srgb, var(--warn-text) 40%, var(--border));
+  background: var(--warn-soft);
+  color: var(--warn-text);
+}
+
+.skipBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: 14px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--accent);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:active {
+    background: var(--bg);
+  }
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  z-index: 50;
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.footBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 14px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+
+  &:active {
+    background: var(--bg);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.finish {
+  color: var(--danger);
+  border-color: var(--danger-soft);
+}

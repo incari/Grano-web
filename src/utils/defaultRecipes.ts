@@ -2,7 +2,21 @@ import type { SavedRecipe } from '../types';
 
 // Famous, widely-referenced pour-over recipes, seeded on first run.
 // Water values are INCREMENTAL per step (grams added in that pour).
+// IDs always start with `seed-` so they can be restored and never deleted.
 const SEED_DATE = '2024-01-01T00:00:00.000Z';
+
+export function isDefaultRecipeId(id: string): boolean {
+  return id.startsWith('seed-');
+}
+
+/** Re-add any missing factory recipes; keep user edits of existing seeds. */
+export function ensureDefaultRecipes(list: SavedRecipe[]): SavedRecipe[] {
+  const ids = new Set(list.map((r) => r.id));
+  const missing = DEFAULT_RECIPES.filter((r) => !ids.has(r.id));
+  if (missing.length === 0) return list;
+  // Defaults first so they stay visible at the top of the library.
+  return [...missing, ...list];
+}
 
 export const DEFAULT_RECIPES: SavedRecipe[] = [
   {
@@ -62,6 +76,57 @@ export const DEFAULT_RECIPES: SavedRecipe[] = [
       { id: 'seed-kalita-wave-3', label: 'Pulse 2', water: 100, restSeconds: 15 },
       { id: 'seed-kalita-wave-4', label: 'Pulse 3', water: 100, restSeconds: 0 },
     ],
+  },
+  {
+    id: 'seed-espresso-classic',
+    name: 'Classic 1:2 Shot',
+    method: 'espresso',
+    dose: 18,
+    temperature: 93,
+    grindSize: 'extra-fine',
+    createdAt: SEED_DATE,
+    steps: [],
+    espresso: {
+      yieldG: 36,
+      shotSeconds: 28,
+      preInfusionSeconds: 5,
+      pressureBar: 9,
+      basketG: 18,
+    },
+  },
+  {
+    id: 'seed-espresso-ristretto',
+    name: 'Ristretto 1:1.5',
+    method: 'espresso',
+    dose: 18,
+    temperature: 94,
+    grindSize: 'extra-fine',
+    createdAt: SEED_DATE,
+    steps: [],
+    espresso: {
+      yieldG: 27,
+      shotSeconds: 26,
+      preInfusionSeconds: 6,
+      pressureBar: 9,
+      basketG: 18,
+    },
+  },
+  {
+    id: 'seed-espresso-lungo',
+    name: 'Lungo 1:3',
+    method: 'espresso',
+    dose: 18,
+    temperature: 92,
+    grindSize: 'fine',
+    createdAt: SEED_DATE,
+    steps: [],
+    espresso: {
+      yieldG: 54,
+      shotSeconds: 35,
+      preInfusionSeconds: 4,
+      pressureBar: 8,
+      basketG: 18,
+    },
   },
   {
     id: 'seed-hoffmann-chemex',

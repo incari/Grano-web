@@ -261,3 +261,108 @@
   cursor: pointer;
   line-height: 1;
 }
+
+.cardWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.brewCount {
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+.historyToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.brewList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 12px 12px;
+  padding: 10px 12px;
+  background: var(--surface-alt);
+  border: 1px solid var(--hairline);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+}
+
+.cardWrap .card {
+  border-radius: 16px;
+}
+
+.cardWrap:has(.brewList) .card {
+  border-radius: 16px 16px 0 0;
+  border-bottom-color: transparent;
+}
+
+.brewRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+
+  &:active {
+    filter: brightness(0.97);
+  }
+}
+
+.brewRowTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.brewMethod {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: capitalize;
+}
+
+.brewDate {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.brewRowStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.brewRating {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--accent);
+}
