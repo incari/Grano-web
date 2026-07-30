@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900" viewBox="0 0 900 900">
+  <rect x="50" y="50" width="800" height="800" fill="none" stroke="#111" stroke-width="4"/>
+  <text x="450" y="40" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="600">80 mm x 80 mm enclosure</text>
+
+  <!-- Case center guide -->
+  <line x1="450" y1="50" x2="450" y2="850" stroke="#999" stroke-width="2" stroke-dasharray="8 8"/>
+  <line x1="50" y1="450" x2="850" y2="450" stroke="#999" stroke-width="2" stroke-dasharray="8 8"/>
+
+  <!-- Load cell -->
+  <rect x="212.5" y="393.65" width="475" height="63.5" fill="#f7f7f7" stroke="#222" stroke-width="3"/>
+  <text x="450" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="24">Load cell 75 × 12.7 mm</text>
+
+  <!-- Mounting holes -->
+  <circle cx="250" cy="425.15" r="6" fill="#fff" stroke="#222" stroke-width="3"/>
+  <circle cx="650" cy="425.15" r="6" fill="#fff" stroke="#222" stroke-width="3"/>
+
+  <!-- Hole notes -->
+  <line x1="250" y1="425.15" x2="285" y2="425.15" stroke="#666" stroke-width="2"/>
+  <line x1="650" y1="425.15" x2="615" y2="425.15" stroke="#666" stroke-width="2"/>
+  <text x="280" y="415" font-family="Arial, sans-serif" font-size="20">5.5 mm</text>
+  <text x="590" y="415" font-family="Arial, sans-serif" font-size="20">5.5 mm</text>
+  <text x="450" y="470" text-anchor="middle" font-family="Arial, sans-serif" font-size="20">Hole spacing: 15.5 mm</text>
+
+  <!-- Dimension labels -->
+  <line x1="50" y1="860" x2="850" y2="860" stroke="#111" stroke-width="2"/>
+  <line x1="860" y1="50" x2="860" y2="850" stroke="#111" stroke-width="2"/>
+  <text x="450" y="890" text-anchor="middle" font-family="Arial, sans-serif" font-size="22">80 mm</text>
+  <text x="880" y="450" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" transform="rotate(90 880 450)">80 mm</text>
+  <text x="450" y="330" text-anchor="middle" font-family="Arial, sans-serif" font-size="20">Centered in the enclosure</text>
+</svg>

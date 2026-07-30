@@ -1,9 +1,13 @@
 /**
  * Minimal WebSocket server that simulates an ESP32 coffee scale.
  * Protocol (JSON text frames):
- *   server → client  { "t":"w", "g":12.34 }     // weight @ ~10 Hz
+ *   server → client  { "t":"w", "g":12.34 }               // weight @ ~10 Hz
+ *   server → client  { "t":"ack", "cmd":"tare", "ok":true } // command result
  *   client → server  { "t":"tare" }
- *   client → server  { "t":"pour", "rate":9 }    // g/s, 0 = stop
+ *   client → server  { "t":"cal", "g":100 }               // calibrate: 100 g is on the cell
+ *   client → server  { "t":"cal_reset" }                  // restore default calibration
+ *   client → server  { "t":"wifi_reset" }                 // forget Wi-Fi, reboot to portal
+ *   client → server  { "t":"pour", "rate":9 }             // g/s, 0 = stop
  *   client → server  { "t":"set", "g":50 }
  *
  * Usage: node scripts/esp32-sim.mjs
@@ -15,9 +19,13 @@ import crypto from "node:crypto";
 const PORT = Number(process.env.SCALE_PORT ?? 8787);
 const HOST = process.env.SCALE_HOST ?? "127.0.0.1";
 
+// Simulated load-cell model: raw counts = grams × calibrationFactor.
+const DEFAULT_CALIBRATION_FACTOR = 1100.2; // counts per gram
+
 let grams = 0;
 let tareOffset = 0;
 let pourRate = 0; // g/s
+let calibrationFactor = DEFAULT_CALIBRATION_FACTOR;
 let lastTick = Date.now();
 
 /** @type {Set<import('node:stream').Duplex>} */
@@ -52,7 +60,7 @@ function tickPhysics() {
   }
 }
 
-function handleMessage(raw) {
+function handleMessage(raw, socket) {
   let msg;
   try {
     msg = JSON.parse(String(raw));
@@ -62,6 +70,40 @@ function handleMessage(raw) {
   if (msg.t === "tare") {
     tareOffset = grams;
     console.log(`[scale] tare → ${rawWeight().toFixed(2)} g`);
+    ack(socket, "tare", true);
+  } else if (msg.t === "cal" && typeof msg.g === "number") {
+    // Calibrate against the weight currently on the cell. Mirrors the firmware:
+    // needs a real, positive weight or it refuses.
+    const known = Number(msg.g);
+    const onCell = rawWeight();
+    if (known <= 0 || onCell < 1) {
+      console.log(`[scale] calibrate rejected (on cell ${onCell.toFixed(2)} g)`);
+      ack(socket, "cal", false, undefined, "Place a known weight, then calibrate");
+      return;
+    }
+    // Pretend the raw counts came from the true weight, derive counts/g.
+    calibrationFactor = (onCell * DEFAULT_CALIBRATION_FACTOR) / known;
+    // With the new factor the reading now matches the known weight.
+    grams = tareOffset + known;
+    console.log(
+      `[scale] calibrate ${known} g → factor ${calibrationFactor.toFixed(3)} counts/g`,
+    );
+    ack(socket, "cal", true, calibrationFactor);
+  } else if (msg.t === "cal_reset") {
+    calibrationFactor = DEFAULT_CALIBRATION_FACTOR;
+    console.log("[scale] calibration reset to default");
+    ack(socket, "cal_reset", true, calibrationFactor);
+  } else if (msg.t === "wifi_reset") {
+    // Mirror the firmware: acknowledge, then "reboot" by dropping the link.
+    console.log("[scale] wifi_reset → forgetting Wi-Fi, rebooting to portal");
+    ack(socket, "wifi_reset", true, undefined, "Rebooting into setup hotspot");
+    setTimeout(() => {
+      try {
+        socket.end();
+      } catch {
+        clients.delete(socket);
+      }
+    }, 300);
   } else if (msg.t === "pour") {
     pourRate = Number(msg.rate) || 0;
     console.log(`[scale] pour rate ${pourRate} g/s`);
@@ -70,6 +112,18 @@ function handleMessage(raw) {
     console.log(`[scale] set ${rawWeight().toFixed(2)} g`);
   } else if (msg.t === "stop") {
     pourRate = 0;
+  }
+}
+
+function ack(socket, cmd, ok, factor, message) {
+  if (!socket) return;
+  const payload = { t: "ack", cmd, ok };
+  if (typeof factor === "number") payload.factor = Math.round(factor * 1000) / 1000;
+  if (message) payload.message = message;
+  try {
+    sendText(socket, JSON.stringify(payload));
+  } catch {
+    clients.delete(socket);
   }
 }
 
@@ -172,7 +226,9 @@ server.on("upgrade", (req, socket) => {
   let buf = Buffer.alloc(0);
   socket.on("data", (chunk) => {
     buf = Buffer.concat([buf, chunk]);
-    const { rest, closed } = parseFrames(buf, handleMessage);
+    const { rest, closed } = parseFrames(buf, (text) =>
+      handleMessage(text, socket),
+    );
     buf = Buffer.from(rest);
     if (closed) socket.end();
   });

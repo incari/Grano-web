@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Coffee, Bean, NotebookText, ClipboardList } from "lucide-react";
+import { Coffee, Bean, NotebookText, ClipboardList, Scale } from "lucide-react";
 import styles from "./BottomNav.module.scss";
 
 const items = [
@@ -7,6 +7,7 @@ const items = [
   { to: "/recipes", Icon: NotebookText, label: "Recipes" },
   { to: "/beans", Icon: Bean, label: "Beans" },
   { to: "/log", Icon: ClipboardList, label: "Log" },
+  { to: "/scale", Icon: Scale, label: "Scale" },
 ];
 
 export default function BottomNav() {

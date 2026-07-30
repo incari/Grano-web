@@ -3,7 +3,10 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 64px;
+  /* box-sizing: border-box is global, so a fixed height would eat the safe-area
+     padding instead of growing the bar. Use min-height + the inset as real
+     padding so the home-indicator gap is added below the icons, not inside. */
+  min-height: 64px;
   display: flex;
   justify-content: space-around;
   align-items: center;
