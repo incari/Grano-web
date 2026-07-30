@@ -2,6 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { BrewMethod } from "../../types";
 import { BREW_PRESETS, getPreset } from "../../utils/presets";
 import { buildRecipe, formatTime } from "../../utils/recipe";
+import type { BrewFinishPayload } from "../../utils/brewTelemetry";
+import {
+  buildEspressoRun,
+  type EspressoFinishPayload,
+} from "../../utils/espresso";
 import { useBeans, useBrewLogs } from "../../store/useStore";
 import {
   Coffee,
@@ -16,6 +21,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import GuidedPour from "./GuidedPour";
+import EspressoShot from "./EspressoShot";
 import PageHeader from "../../components/PageHeader/PageHeader";
 import styles from "./BrewSetup.module.scss";
 
@@ -35,6 +41,7 @@ export default function BrewSetup() {
   const [dose, setDose] = useState(15);
   const [ratio, setRatio] = useState(getPreset("pour-over").ratio);
   const [beanId, setBeanId] = useState<string>("");
+  const [grindSetting, setGrindSetting] = useState("");
   const [brewing, setBrewing] = useState(false);
 
   const water = Math.round(dose * ratio);
@@ -71,22 +78,65 @@ export default function BrewSetup() {
     setRatio(preset.ratio);
   }
 
-  function finishBrew(elapsed: number) {
+  function finishBrew(payload: BrewFinishPayload) {
     const bean = beans.find((b) => b.id === beanId);
+    const waterWeight =
+      payload.finalWeight > 0 ? payload.finalWeight : water;
     addLog({
       id: crypto.randomUUID(),
       beanId: beanId || undefined,
       beanName: bean?.name,
       method,
       dose,
-      waterWeight: water,
-      ratio,
-      brewTimeSeconds: elapsed,
+      waterWeight,
+      ratio:
+        dose > 0
+          ? Math.round((waterWeight / dose) * 10) / 10
+          : ratio,
+      brewTimeSeconds: payload.elapsed,
       rating: 0,
       notes: "",
       brewedAt: new Date().toISOString(),
+      recipeName: recipe.label,
+      grindSetting: grindSetting.trim() || undefined,
+      trace: payload.trace,
+      stepActuals: payload.stepActuals,
+      consistencyScore: payload.consistencyScore,
     });
     setBrewing(false);
+  }
+
+  function finishShot(payload: EspressoFinishPayload) {
+    const bean = beans.find((b) => b.id === beanId);
+    const yieldG = payload.finalWeight > 0 ? payload.finalWeight : water;
+    addLog({
+      id: crypto.randomUUID(),
+      beanId: beanId || undefined,
+      beanName: bean?.name,
+      method,
+      dose,
+      waterWeight: yieldG,
+      ratio: dose > 0 ? Math.round((yieldG / dose) * 10) / 10 : ratio,
+      brewTimeSeconds: payload.elapsed,
+      rating: 0,
+      notes: "",
+      brewedAt: new Date().toISOString(),
+      recipeName: recipe.label,
+      grindSetting: grindSetting.trim() || undefined,
+      trace: payload.trace,
+      espressoShot: payload.shot,
+    });
+    setBrewing(false);
+  }
+
+  if (brewing && method === "espresso") {
+    return (
+      <EspressoShot
+        run={buildEspressoRun(recipe.label, dose, ratio)}
+        onFinish={finishShot}
+        onExit={() => setBrewing(false)}
+      />
+    );
   }
 
   if (brewing) {
@@ -205,13 +255,27 @@ export default function BrewSetup() {
         </section>
       )}
 
+      <section className={styles.block}>
+        <span className={styles.blockLabel}>GRIND SETTING</span>
+        <input
+          className={styles.select}
+          type="text"
+          inputMode="decimal"
+          placeholder="e.g. 22 clicks · Niche 1.8"
+          value={grindSetting}
+          onChange={(e) => setGrindSetting(e.target.value)}
+        />
+      </section>
+
       <div className={styles.summary}>
         <div>
           <Scale
             size={18}
             className={styles.sumIcon}
           />
-          <span className={styles.sumLabel}>Water</span>
+          <span className={styles.sumLabel}>
+            {method === "espresso" ? "Yield" : "Water"}
+          </span>
           <span className={styles.sumValue}>{water} g</span>
         </div>
         <div>

@@ -6,6 +6,7 @@ import styles from './AccumulationChart.module.scss';
 export interface ChartPoint {
   t: number; // seconds from brew start
   g: number; // cumulative grams
+  flow?: number; // g/s (optional telemetry)
 }
 
 interface Props {

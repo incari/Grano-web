@@ -6,6 +6,12 @@ import type { ChartPoint } from "../../components/AccumulationChart/Accumulation
 import type { PourStep, Recipe } from "../../utils/recipe";
 import { formatTime } from "../../utils/recipe";
 import { redistributeOvershoot } from "../../utils/overshoot";
+import {
+  downsampleTrace,
+  scoreConsistency,
+  type BrewFinishPayload,
+} from "../../utils/brewTelemetry";
+import type { BrewStepActual } from "../../types";
 import { haptic } from "../../utils/haptics";
 import { beep } from "../../utils/sound";
 import { useScaleContext } from "../../scale/scaleContextValue";
@@ -29,9 +35,11 @@ import styles from "./GuidedPour.module.scss";
 
 interface Props {
   recipe: Recipe;
-  onFinish: (elapsed: number) => void;
+  onFinish: (payload: BrewFinishPayload) => void;
   onExit: () => void;
 }
+
+export type { BrewFinishPayload };
 
 const TOLERANCE = 5; // ±5 g band
 
@@ -53,7 +61,8 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
   const [liveSteps, setLiveSteps] = useState<PourStep[]>(() =>
     recipe.steps.map((s) => ({ ...s })),
   );
-  const [adjustBanner, setAdjustBanner] = useState<string | null>(null);
+  /** Last overshoot amount (g) shown as a compact badge on Actual poured. */
+  const [overshootBadgeG, setOvershootBadgeG] = useState<number | null>(null);
 
   const scale = useScaleContext();
   const live = scale.live;
@@ -65,6 +74,7 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
   const tareHoldUntil = useRef(0);
   const adjustedSteps = useRef(new Set<number>());
   const completedPourKeys = useRef(new Set<string>());
+  const stepActualsRef = useRef<BrewStepActual[]>([]);
 
   const step = liveSteps[stepIndex] ?? recipe.steps[stepIndex];
   const isLastStep = stepIndex >= liveSteps.length - 1;
@@ -173,7 +183,7 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
       if (elapsed - last.t < 0.25) {
         return h;
       }
-      return [...h, { t: elapsed, g: current }];
+      return [...h, { t: elapsed, g: current, flow }];
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elapsed]);
@@ -206,6 +216,17 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
     completedPourKeys.current.add(doneKey);
 
     setFlow(0);
+    if (isPour) {
+      const planned = recipe.steps[stepIndex]?.target ?? target;
+      stepActualsRef.current = [
+        ...stepActualsRef.current.filter((a) => a.label !== step.label),
+        {
+          label: step.label,
+          targetG: planned,
+          actualG: Math.round(current),
+        },
+      ];
+    }
     // Overshoot: keep final batch size, shrink later pours proportionally.
     if (
       isPour &&
@@ -227,11 +248,7 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
       if (didAdjust) {
         setLiveSteps(nextSteps);
         const g = Math.round(overshootG);
-        setAdjustBanner(
-          g > 0
-            ? `+${g} g over — later pours trimmed to keep ${recipe.totalWater} g total`
-            : null,
-        );
+        setOvershootBadgeG(g > 0 ? g : null);
       }
     }
     haptic("success");
@@ -255,12 +272,12 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
     recipe.totalWater,
   ]);
 
-  // Clear the overshoot toast after a moment
+  // Fade the overshoot badge after a moment
   useEffect(() => {
-    if (!adjustBanner) return;
-    const id = window.setTimeout(() => setAdjustBanner(null), 4500);
+    if (overshootBadgeG == null) return;
+    const id = window.setTimeout(() => setOvershootBadgeG(null), 5000);
     return () => window.clearTimeout(id);
-  }, [adjustBanner]);
+  }, [overshootBadgeG]);
 
   // ── Auto progression: rest/action elapsed → next step (or done) ──────────
   useEffect(() => {
@@ -357,7 +374,27 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
     finished.current = true;
     haptic("success");
     beep("done");
-    onFinish(Math.round(elapsed));
+    const tip = { t: elapsed, g: current, flow };
+    const rawTrace = [...history, tip];
+    const trace = downsampleTrace(rawTrace);
+    // Prefer live per-step captures; fill any missing pours from current weight.
+    let stepActuals = [...stepActualsRef.current];
+    if (isPour && !stepActuals.some((a) => a.label === step.label)) {
+      stepActuals.push({
+        label: step.label,
+        targetG: recipe.steps[stepIndex]?.target ?? target,
+        actualG: Math.round(current),
+      });
+    }
+    const consistencyScore = scoreConsistency(stepActuals);
+    onFinish({
+      elapsed: Math.round(elapsed),
+      finalWeight: Math.round(current),
+      trace,
+      stepActuals,
+      consistencyScore,
+      liveSteps,
+    });
     navigate("/log");
   }
 
@@ -403,14 +440,6 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
           role="status"
         >
           {scaleError}
-        </div>
-      )}
-      {adjustBanner && (
-        <div
-          className={styles.adjustBanner}
-          role="status"
-        >
-          {adjustBanner}
         </div>
       )}
 
@@ -590,6 +619,15 @@ export default function GuidedPour({ recipe, onFinish, onExit }: Props) {
                           <span className={styles.remainLabel}>
                             <IconDroplet size={14} />
                             Actual poured
+                            {overshootBadgeG != null && (
+                              <span
+                                className={styles.overshootBadge}
+                                title={`+${overshootBadgeG} g over — later pours trimmed to keep ${recipe.totalWater} g total`}
+                                role="status"
+                              >
+                                +{overshootBadgeG} g · adjusted
+                              </span>
+                            )}
                           </span>
                           <div className={styles.pourToValue}>
                             {Math.round(current)} <small>g</small>
