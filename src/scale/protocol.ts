@@ -6,10 +6,14 @@ import type { ScaleSample, ScaleStatus } from "./types";
  *
  *   scale → app  {"t":"w","g":12.3}                  weight, ~10 Hz
  *   scale → app  {"t":"ack","cmd":"tare","ok":true}  command result
+ *   scale → app  {"t":"temp","c":93.5}               probe temperature, ~1 Hz
+ *   scale → app  {"t":"btn","id":"timer"}            front-panel button press
  */
 export type ScaleFrame =
   | { kind: "sample"; sample: ScaleSample }
-  | { kind: "status"; status: ScaleStatus };
+  | { kind: "status"; status: ScaleStatus }
+  | { kind: "temp"; celsius: number }
+  | { kind: "button"; id: string };
 
 interface RawFrame {
   t?: string;
@@ -18,6 +22,8 @@ interface RawFrame {
   ok?: boolean;
   factor?: number;
   message?: string;
+  c?: number;
+  id?: string;
 }
 
 export function parseScaleFrame(text: string): ScaleFrame | null {
@@ -41,6 +47,12 @@ export function parseScaleFrame(text: string): ScaleFrame | null {
         message: msg.message,
       },
     };
+  }
+  if (msg.t === "temp" && typeof msg.c === "number") {
+    return { kind: "temp", celsius: msg.c };
+  }
+  if (msg.t === "btn" && typeof msg.id === "string") {
+    return { kind: "button", id: msg.id };
   }
   return null;
 }

@@ -149,6 +149,10 @@ export function createBleScaleDriver(): ScaleDriver {
       await send({ t: "wifi_reset" });
     },
 
+    async beep() {
+      await send({ t: "beep" });
+    },
+
     onSample: samples.on,
     onConnection: conns.on,
     onStatus: statuses.on,

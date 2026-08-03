@@ -10,13 +10,15 @@ import type {
 // name regardless of the DHCP-assigned IP.
 const DEFAULT_URL = "ws://grano-scale.local:81";
 
-/** WebSocket driver for the Wi-Fi ESP32 scale (and the Node simulator). */
+/** WebSocket driver for the Wi-Fi ESP32 scale. */
 export function createWsScaleDriver(url = DEFAULT_URL): ScaleDriver {
   let ws: WebSocket | null = null;
   let intentionalClose = false;
   const samples = createEmitter<ScaleSample>();
   const conns = createEmitter<ScaleConnection>();
   const statuses = createEmitter<ScaleStatus>();
+  const temps = createEmitter<number>();
+  const buttons = createEmitter<string>();
 
   function send(obj: Record<string, unknown>) {
     if (ws?.readyState === WebSocket.OPEN) {
@@ -75,6 +77,8 @@ export function createWsScaleDriver(url = DEFAULT_URL): ScaleDriver {
           const frame = parseScaleFrame(String(ev.data));
           if (frame?.kind === "sample") samples.emit(frame.sample);
           else if (frame?.kind === "status") statuses.emit(frame.status);
+          else if (frame?.kind === "temp") temps.emit(frame.celsius);
+          else if (frame?.kind === "button") buttons.emit(frame.id);
         };
       });
     },
@@ -112,13 +116,15 @@ export function createWsScaleDriver(url = DEFAULT_URL): ScaleDriver {
       send({ t: "wifi_reset" });
     },
 
-    setPourRate(rateGPerS: number) {
-      send({ t: "pour", rate: rateGPerS });
+    async beep() {
+      send({ t: "beep" });
     },
 
     onSample: samples.on,
     onConnection: conns.on,
     onStatus: statuses.on,
+    onTemp: temps.on,
+    onButton: buttons.on,
   };
 }
 

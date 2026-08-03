@@ -6,6 +6,8 @@
 #include <WiFiManager.h>
 #include <WebSocketsServer.h>
 #include <NimBLEDevice.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 #include <functional>
 
 
@@ -13,6 +15,26 @@
 // HX711: DT -> GPIO5 , SCK -> GPIO6
 #define DOUT 5
 #define CLK  6
+
+// Front-panel controls and feedback. GPIO8/9 are strapping/BOOT/LED on the C3,
+// so we stay clear of them. Buttons use the internal pull-up (pressed = LOW),
+// so each just bridges its GPIO to GND. The buzzer is an active type: it beeps
+// on a plain HIGH, no PWM tone needed.
+#define BTN_TARE   3   // physical tare button
+#define BTN_TIMER  4   // starts the shot clock in the app
+#define BUZZER    10   // active buzzer: (+) -> GPIO10, (-) -> GND
+
+// DS18B20 submersible probe on a 1-Wire bus. Needs a 4.7k pull-up from data to
+// 3V3 for reliable reads; the reading is broadcast about once a second.
+#define TEMP_PIN   7
+#define TEMP_INTERVAL_MS 1000
+
+// Debounce window shared by both buttons - long enough to swallow contact
+// bounce, short enough to still feel instant.
+#define BTN_DEBOUNCE_MS 250
+
+// Active-buzzer beep length for a short "bip" on a button press.
+#define BEEP_MS 40
 
 // Wi-Fi is provisioned from the phone, not hardcoded. On first boot (or when it
 // can't reach the saved network) the scale opens its own hotspot named AP_SSID
@@ -96,6 +118,9 @@ WebSocketsServer webSocket = WebSocketsServer(WS_PORT);
 // WiFiManager runs non-blocking so the HX711 read + broadcast loop keeps
 // streaming to BLE while the captive portal is open (see connectWifi/loop).
 WiFiManager wm;
+OneWire oneWire(TEMP_PIN);
+DallasTemperature tempSensor(&oneWire);
+bool tempPresent = false;    // set at boot if a DS18B20 answers on the bus
 bool portalActive = false;   // true while the setup portal is serviced in loop()
 bool mdnsStarted = false;    // guards a one-time startMdns() once Wi-Fi connects
 float calibrationFactor = DEFAULT_CALIBRATION_FACTOR;
@@ -108,6 +133,7 @@ using Reply = std::function<void(const char *json, int len)>;
 // Defined after the Wi-Fi helpers below but called from the serial/WebSocket
 // command handlers above them.
 static void resetWifi();
+static void beep();
 
 static void printHelp() {
     Serial.println();
@@ -300,7 +326,10 @@ static void handleSerial() {
 // and simulator speak, so a command handler only needs a way to reply:
 //   server → client  {"t":"w","g":12.3}                 // weight @ ~10 Hz
 //   server → client  {"t":"ack","cmd":"tare","ok":true} // command result
+//   server → client  {"t":"temp","c":93.5}              // probe temp @ ~1 Hz
+//   server → client  {"t":"btn","id":"timer"}           // timer button pressed
 //   client → server  {"t":"tare"}
+//   client → server  {"t":"beep"}                       // sound the buzzer
 //   client → server  {"t":"cal","g":100}                // 100 g is on the cell
 //   client → server  {"t":"cal_reset"}
 
@@ -368,8 +397,13 @@ static void handleCommand(const char *payload, const char *via,
                           const Reply &reply) {
     if (jsonHas(payload, "t", "tare")) {
         Serial.printf("Tare (%s)\n", via);
+        beep();
         tare("Taring");
         sendAck(reply, "tare", true, NAN, nullptr);
+    } else if (jsonHas(payload, "t", "beep")) {
+        // Audible feedback for an app action (start / pause / resume).
+        beep();
+        sendAck(reply, "beep", true, NAN, nullptr);
     } else if (jsonHas(payload, "t", "wifi_reset")) {
         sendAck(reply, "wifi_reset", true, NAN, nullptr);
         delay(100);  // let the ack flush before we drop Wi-Fi and reboot
@@ -626,12 +660,86 @@ static void serviceWifiPortal() {
     }
 }
 
+// ── Buttons, buzzer and temperature ──────────────────────────────────────────
+// Short beep for a button press. Active buzzer, so a plain HIGH makes the sound;
+// this blocks for BEEP_MS but that is far shorter than a HX711 conversion.
+static void beep() {
+    digitalWrite(BUZZER, HIGH);
+    delay(BEEP_MS);
+    digitalWrite(BUZZER, LOW);
+}
+
+// Send a frame to every connected transport (WebSocket + BLE).
+static void broadcastFrame(const char *json, int len) {
+    webSocket.broadcastTXT((char *)json, len);
+    bleNotifyJson(json, len);
+}
+
+// Poll the two front-panel buttons from loop(). TARE zeroes the cell locally;
+// TIMER just tells the app to start its shot clock via a "btn" frame. Both give
+// a short beep. Each button is debounced independently and only fires on the
+// press edge (LOW after being HIGH), so holding it down beeps once.
+static void serviceButtons() {
+    static bool tareWas = false, timerWas = false;
+    static uint32_t tareAt = 0, timerAt = 0;
+    uint32_t now = millis();
+
+    bool tareDown = digitalRead(BTN_TARE) == LOW;
+    if (tareDown && !tareWas && now - tareAt > BTN_DEBOUNCE_MS) {
+        tareAt = now;
+        beep();
+        tare("Button tare");
+        broadcastWeight();
+    }
+    tareWas = tareDown;
+
+    bool timerDown = digitalRead(BTN_TIMER) == LOW;
+    if (timerDown && !timerWas && now - timerAt > BTN_DEBOUNCE_MS) {
+        timerAt = now;
+        beep();
+        const char *f = "{\"t\":\"btn\",\"id\":\"timer\"}";
+        Serial.println("Timer button -> app");
+        broadcastFrame(f, (int)strlen(f));
+    }
+    timerWas = timerDown;
+}
+
+// Broadcast the probe temperature about once a second. Requesting a conversion
+// blocks briefly, so like everything else this runs from loop(), never a
+// callback. A disconnected probe reads DEVICE_DISCONNECTED_C, which we skip.
+static void serviceTemperature() {
+    if (!tempPresent) return;
+    static uint32_t last = 0;
+    uint32_t now = millis();
+    if (now - last < TEMP_INTERVAL_MS) return;
+    last = now;
+
+    tempSensor.requestTemperatures();
+    float c = tempSensor.getTempCByIndex(0);
+    if (c <= DEVICE_DISCONNECTED_C) return;
+
+    char buf[32];
+    int n = snprintf(buf, sizeof(buf), "{\"t\":\"temp\",\"c\":%.1f}", c);
+    broadcastFrame(buf, n);
+}
+
 void setup() {
     Serial.begin(115200);
     delay(1000);
 
     scale.begin(DOUT, CLK);
     scale.set_gain(128);  // channel A, gain 128
+
+    // Buttons idle HIGH via the internal pull-up; a press pulls them to GND.
+    pinMode(BTN_TARE, INPUT_PULLUP);
+    pinMode(BTN_TIMER, INPUT_PULLUP);
+    pinMode(BUZZER, OUTPUT);
+    digitalWrite(BUZZER, LOW);
+
+    // Detect the DS18B20 once at boot; skip temp broadcasts if none is wired.
+    tempSensor.begin();
+    tempPresent = tempSensor.getDeviceCount() > 0;
+    Serial.printf("Temp probe: %s\n", tempPresent ? "found" : "none");
 
     Serial.println();
     Serial.println("=== HX711 WEIGHT READOUT ===");
@@ -684,6 +792,8 @@ void loop() {
     servicePendingBleCommand();
     handleSerial();
     serviceDoubleReset();
+    serviceButtons();
+    serviceTemperature();
 
     if (!streaming) {
         delay(50);

@@ -1,18 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import WaterGauge from "../../components/WaterGauge/WaterGauge";
 import { formatTime } from "../../utils/recipe";
 import { downsampleTrace } from "../../utils/brewTelemetry";
 import {
   brewRatio,
-  shotFlow,
   type EspressoFinishPayload,
   type EspressoRun,
 } from "../../utils/espresso";
 import { haptic } from "../../utils/haptics";
 import { beep } from "../../utils/sound";
-import { createWsScaleDriver } from "../../scale/drivers/websocket";
-import { useScale } from "../../scale/useScale";
+import { useScaleContext } from "../../scale/scaleContextValue";
 import {
   IconAlert,
   IconCheck,
@@ -56,26 +54,25 @@ export default function EspressoShot({ run, onFinish, onExit }: Props) {
   );
   const [firstDrop, setFirstDrop] = useState<number | null>(null);
   const [channeling, setChanneling] = useState(false);
-  const [history, setHistory] = useState<{ t: number; g: number; flow?: number }[]>(
-    [{ t: 0, g: 0 }],
-  );
+  const [history, setHistory] = useState<
+    { t: number; g: number; flow?: number }[]
+  >([{ t: 0, g: 0 }]);
   const [scaleError, setScaleError] = useState<string | null>(null);
   const [peakFlow, setPeakFlow] = useState(0);
 
-  const scaleDriver = useMemo(() => createWsScaleDriver(), []);
-  const scale = useScale(scaleDriver);
+  const scale = useScaleContext();
   const live = scale.live;
 
   const finished = useRef(false);
   const started = useRef(false);
-  const liveRef = useRef(live);
-  liveRef.current = live;
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
   const tareHoldUntil = useRef(0);
 
-  const targetFlow = shotFlow(spec.yieldG, spec.shotSeconds);
-  const preRemaining = Math.max(0, Math.ceil(spec.preInfusionSeconds - elapsed));
+  const preRemaining = Math.max(
+    0,
+    Math.ceil(spec.preInfusionSeconds - elapsed),
+  );
   const shotRemaining = Math.max(0, Math.ceil(spec.shotSeconds - shotElapsed));
   const remaining = Math.max(0, spec.yieldG - yieldG);
   const ratio = brewRatio(run.dose, yieldG);
@@ -117,51 +114,50 @@ export default function EspressoShot({ run, onFinish, onExit }: Props) {
     setFlow(scale.flow);
   }, [live, scale.weight, scale.flow]);
 
-  // Drive the sim pump: nothing flows during pre-infusion.
+  // The shared provider keeps the scale connected across navigation; just make
+  // sure we're connected when this screen mounts (idempotent while connected).
   useEffect(() => {
-    if (!live) return;
-    scale.setPourRate(running && phase === "extracting" ? targetFlow : 0);
-  }, [live, running, phase, targetFlow, scale.setPourRate]);
+    setScaleError(null);
+    void scale.connect().catch(() => {
+      setScaleError(
+        "Can't reach the scale — check it's powered on and on Wi-Fi",
+      );
+    });
+    // scale.connect is stable; run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // Physical TIMER button on the scale mirrors the app's Start button: first
+  // press starts, later presses pause/resume. Ignored once the shot is done.
+  const startFromButton = useRef<() => void>(() => {});
   useEffect(() => {
-    return () => {
-      void scaleDriver.disconnect();
-    };
-  }, [scaleDriver]);
+    return scale.onButton((id) => {
+      if (id === "timer" && phaseRef.current !== "done") {
+        void startFromButton.current();
+      }
+    });
+    // scale.onButton is stable; re-subscribing on every render is unnecessary.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scale.onButton]);
 
   useEffect(() => {
     document.body.classList.add("brewing");
     return () => document.body.classList.remove("brewing");
   }, []);
 
-  // ── Clock + offline extraction simulation ────────────────────────────────
+  // ── Shot clock ───────────────────────────────────────────────────────────
+  // Weight/flow always come from the live scale; this only advances the clocks.
   useEffect(() => {
-    if (!running || phase === "done") {
-      if (!liveRef.current) setFlow(0);
-      return;
-    }
+    if (!running || phase === "done") return;
     const id = window.setInterval(() => {
       const dt = 0.1;
       setElapsed((e) => e + dt);
       if (phaseRef.current === "extracting") {
         setShotElapsed((s) => s + dt);
       }
-      if (liveRef.current || phaseRef.current !== "extracting") {
-        return;
-      }
-      setYieldG((prev) => {
-        const cap = spec.yieldG + 3;
-        if (prev >= cap) return prev;
-        // Espresso ramps in: slow first grams, then a steady plateau.
-        const ramp = Math.min(1, 0.35 + prev / Math.max(1, spec.yieldG * 0.4));
-        const jitter = 0.9 + Math.random() * 0.2;
-        const next = Math.min(cap, prev + targetFlow * ramp * jitter * dt);
-        setFlow((next - prev) / dt);
-        return next;
-      });
     }, 100);
     return () => window.clearInterval(id);
-  }, [running, phase, spec.yieldG, targetFlow]);
+  }, [running, phase]);
 
   // ── Pre-infusion complete → open the pump ─────────────────────────────────
   useEffect(() => {
@@ -205,9 +201,6 @@ export default function EspressoShot({ run, onFinish, onExit }: Props) {
     if (phase !== "extracting" || !running || yieldG < spec.yieldG) {
       return;
     }
-    if (live) {
-      scale.setPourRate(0);
-    }
     haptic("success");
     beep("done");
     setRunning(false);
@@ -216,7 +209,13 @@ export default function EspressoShot({ run, onFinish, onExit }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, running, yieldG, spec.yieldG]);
 
-  async function tareLive() {
+  // beepApp: play the in-app blip (skip it when the caller already beeped, to
+  // avoid a double blip). scale.tare() beeps the scale buzzer on its own.
+  async function tareLive(beepApp = true) {
+    if (beepApp) {
+      beep("step");
+      haptic("tick");
+    }
     tareHoldUntil.current = performance.now() + 350;
     await scale.tare();
     setYieldG(0);
@@ -225,31 +224,38 @@ export default function EspressoShot({ run, onFinish, onExit }: Props) {
 
   async function toggleRun() {
     const next = !running;
+    beep("step");
+    haptic("tick");
     if (!started.current && next) {
       started.current = true;
-      beep("step");
+      // First live start tares, which already beeps the scale buzzer; skip the
+      // app blip since we just played it above.
       if (live) {
-        await tareLive();
+        await tareLive(false);
+        setRunning(next);
+        return;
       }
     }
-    if (live) {
-      scale.setPourRate(next && phase === "extracting" ? targetFlow : 0);
-    }
+    // Every other toggle (offline start, pause, resume) still beeps the scale
+    // so the buzzer mirrors the app's start/pause/resume.
+    if (live) void scale.beep();
     setRunning(next);
   }
+  startFromButton.current = toggleRun;
 
   async function handleScaleToggle() {
     setScaleError(null);
     try {
       if (live || scale.connection === "connecting") {
-        scale.setPourRate(0);
         await scale.disconnect();
       } else {
         await scale.connect();
         await tareLive();
       }
     } catch {
-      setScaleError("Can't reach scale sim — run yarn scale:sim");
+      setScaleError(
+        "Can't reach the scale — check it's powered on and on Wi-Fi",
+      );
     }
   }
 
@@ -260,7 +266,7 @@ export default function EspressoShot({ run, onFinish, onExit }: Props) {
         ? "Connecting…"
         : scale.connection === "error"
           ? "Scale error"
-          : "Simulated";
+          : "Offline";
 
   function handleFinish() {
     if (finished.current) {
@@ -269,7 +275,10 @@ export default function EspressoShot({ run, onFinish, onExit }: Props) {
     finished.current = true;
     haptic("success");
     beep("done");
-    const trace = downsampleTrace([...history, { t: elapsed, g: yieldG, flow }]);
+    const trace = downsampleTrace([
+      ...history,
+      { t: elapsed, g: yieldG, flow },
+    ]);
     onFinish({
       elapsed: Math.round(elapsed),
       finalWeight: Math.round(yieldG),
@@ -329,7 +338,10 @@ export default function EspressoShot({ run, onFinish, onExit }: Props) {
         </button>
       </header>
       {scaleError && (
-        <div className={styles.scaleBanner} role="status">
+        <div
+          className={styles.scaleBanner}
+          role="status"
+        >
           {scaleError}
         </div>
       )}
@@ -389,7 +401,11 @@ export default function EspressoShot({ run, onFinish, onExit }: Props) {
               <IconClock size={16} />
               {formatTime(elapsed)}
             </span>
-            <span className={styles.totalLabel}>total time</span>
+            <span className={styles.totalLabel}>
+              {scale.temperature != null
+                ? `${Math.round(scale.temperature)}°C water`
+                : "total time"}
+            </span>
           </div>
         </div>
 

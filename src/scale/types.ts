@@ -37,10 +37,14 @@ export interface ScaleDriver {
   resetCalibration?(): Promise<void>;
   /** Forget the scale's saved Wi-Fi and reboot into its setup hotspot. */
   resetWifi?(): Promise<void>;
-  /** Hint the simulator to pour (no-op on real hardware). */
-  setPourRate?(rateGPerS: number): void;
+  /** Sound the scale's buzzer, e.g. as feedback for an app action. */
+  beep?(): Promise<void>;
   onSample(cb: (s: ScaleSample) => void): () => void;
   onConnection(cb: (c: ScaleConnection) => void): () => void;
   /** Command acknowledgements (tare / calibrate results). */
   onStatus?(cb: (s: ScaleStatus) => void): () => void;
+  /** Water temperature from the submersible probe, in °C (~1 Hz). */
+  onTemp?(cb: (celsius: number) => void): () => void;
+  /** Front-panel button press, identified by id (e.g. "timer"). */
+  onButton?(cb: (id: string) => void): () => void;
 }
